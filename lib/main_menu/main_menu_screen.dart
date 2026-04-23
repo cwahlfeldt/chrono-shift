@@ -1,80 +1,176 @@
-// Copyright 2022, the Flutter project authors. Please see the AUTHORS file
-// for details. All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../audio/audio_controller.dart';
 import '../audio/sounds.dart';
+import '../game/idle_backdrop.dart';
 import '../settings/settings.dart';
-import '../style/my_button.dart';
 import '../style/palette.dart';
-import '../style/responsive_screen.dart';
 
-class MainMenuScreen extends StatelessWidget {
+/// Main menu for Chrono-Swipe: animated backdrop (starfield + track), big
+/// title, best-score, play button, and a small row of secondary controls.
+class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
+
+  @override
+  State<MainMenuScreen> createState() => _MainMenuScreenState();
+}
+
+class _MainMenuScreenState extends State<MainMenuScreen> {
+  int _best = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBest();
+  }
+
+  Future<void> _loadBest() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _best = prefs.getInt('chrono_high_score') ?? 0);
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.watch<Palette>();
-    final settingsController = context.watch<SettingsController>();
-    final audioController = context.watch<AudioController>();
+    final settings = context.watch<SettingsController>();
 
     return Scaffold(
-      backgroundColor: palette.backgroundMain,
-      body: ResponsiveScreen(
-        squarishMainArea: Center(
-          child: Transform.rotate(
-            angle: -0.1,
-            child: const Text(
-              'Flutter Game Template!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Permanent Marker',
-                fontSize: 55,
-                height: 1,
-              ),
+      backgroundColor: palette.background,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const IdleBackdrop(),
+          Container(color: Colors.black.withValues(alpha: 0.35)),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: _menuColumn(context, palette, settings),
             ),
           ),
-        ),
-        rectangularMenuArea: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            MyButton(
-              onPressed: () {
-                audioController.playSfx(SfxType.buttonTap);
-                GoRouter.of(context).go('/play');
-              },
-              child: const Text('Play'),
-            ),
-            _gap,
-            MyButton(
-              onPressed: () => GoRouter.of(context).push('/settings'),
-              child: const Text('Settings'),
-            ),
-            _gap,
-            Padding(
-              padding: const EdgeInsets.only(top: 32),
-              child: ValueListenableBuilder<bool>(
-                valueListenable: settingsController.audioOn,
-                builder: (context, audioOn, child) {
-                  return IconButton(
-                    onPressed: settingsController.toggleAudioOn,
-                    icon: Icon(audioOn ? Icons.volume_up : Icons.volume_off),
-                  );
-                },
-              ),
-            ),
-            _gap,
-            const Text('Music by Mr Smith'),
-            _gap,
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  static const _gap = SizedBox(height: 10);
+  Widget _menuColumn(
+      BuildContext context, Palette palette, SettingsController settings) {
+    return Column(
+      children: [
+        const Spacer(flex: 2),
+        Text(
+          'CHRONO',
+          style: TextStyle(
+            fontFamily: 'Permanent Marker',
+            fontSize: 72,
+            height: 0.95,
+            color: palette.white,
+            letterSpacing: 2,
+            shadows: [
+              Shadow(
+                color: palette.cyan.withValues(alpha: 0.9),
+                blurRadius: 24,
+              ),
+            ],
+          ),
+        ),
+        Text(
+          'SWIPE',
+          style: TextStyle(
+            fontFamily: 'Permanent Marker',
+            fontSize: 72,
+            height: 0.95,
+            color: palette.cyan,
+            letterSpacing: 8,
+            shadows: [
+              Shadow(
+                color: palette.gold.withValues(alpha: 0.8),
+                blurRadius: 20,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Thread the gap. Slow the world.',
+          style: TextStyle(
+            color: palette.dim,
+            fontSize: 14,
+            letterSpacing: 2,
+          ),
+        ),
+        const Spacer(flex: 3),
+        _bigPlayButton(context, palette),
+        const SizedBox(height: 24),
+        if (_best > 0)
+          Text(
+            'BEST  $_best',
+            style: TextStyle(
+              color: palette.gold,
+              fontFamily: 'Permanent Marker',
+              fontSize: 20,
+              letterSpacing: 4,
+            ),
+          ),
+        const Spacer(flex: 2),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: settings.audioOn,
+              builder: (context, audioOn, _) => IconButton(
+                iconSize: 26,
+                color: palette.dim,
+                onPressed: settings.toggleAudioOn,
+                icon: Icon(audioOn ? Icons.volume_up : Icons.volume_off),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              iconSize: 26,
+              color: palette.dim,
+              onPressed: () => context.push('/settings'),
+              icon: const Icon(Icons.settings),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _bigPlayButton(BuildContext context, Palette palette) {
+    return GestureDetector(
+      onTap: () {
+        try {
+          context.read<AudioController>().playSfx(SfxType.buttonTap);
+        } catch (_) {}
+        context.go('/play');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 18),
+        decoration: BoxDecoration(
+          color: palette.cyan.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: palette.cyan, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: palette.cyan.withValues(alpha: 0.6),
+              blurRadius: 30,
+            ),
+          ],
+        ),
+        child: Text(
+          'PLAY',
+          style: TextStyle(
+            fontFamily: 'Permanent Marker',
+            fontSize: 36,
+            color: palette.white,
+            letterSpacing: 8,
+          ),
+        ),
+      ),
+    );
+  }
 }
