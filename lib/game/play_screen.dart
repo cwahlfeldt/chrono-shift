@@ -9,6 +9,7 @@ import '../audio/sounds.dart';
 import '../style/palette.dart';
 import 'game_painter.dart';
 import 'game_state.dart';
+import 'game_tuning.dart';
 import 'high_score_store.dart';
 
 /// The entire play session: input handling, game-loop driver, HUD overlay,
@@ -330,7 +331,7 @@ class _Hud extends StatelessWidget {
     final showRefund =
         state.meterRefundTimer > 0 && refundPct > 0 && !state.gameOver;
     final refundAlpha = showRefund
-        ? (state.meterRefundTimer / GameState.meterRefundDisplaySeconds)
+        ? (state.meterRefundTimer / GameTuning.meterRefundDisplaySeconds)
             .clamp(0.0, 1.0)
         : 0.0;
     return Container(

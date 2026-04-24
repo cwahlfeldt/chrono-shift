@@ -3,6 +3,7 @@ import 'dart:ui' show Color, Size;
 
 import 'package:flutter/foundation.dart';
 
+import 'game_tuning.dart';
 import 'models.dart';
 
 /// State of a single Chrono-Swipe run, top-down 2D. The world has a
@@ -16,45 +17,8 @@ import 'models.dart';
 class GameState extends ChangeNotifier {
   GameState();
 
-  // ---------------------- Tunables ----------------------
-  /// Distance from the bottom of the viewport where the player sits.
-  static const double playerBase = 120.0;
-  /// Inset from the left/right screen edges — the "track margin".
-  static const double trackMargin = 28.0;
-  /// Player collider radius (pixels).
-  static const double playerRadius = 10.0;
-
-  // Forward speed in px/sec at time-scale 1. Speed ramps with distance.
-  static const double baseSpeed = 520.0;
-  static const double speedDistBoost = 0.02; // +px/s per px travelled, capped
-  static const double speedDistBoostCap = 380.0;
-
-  static const double slowFactor = 0.2;
-  // Chrono meter is a 0..1 scalar.
-  static const double meterDrainPerSec = 0.55;
-  static const double meterFillPerSec = 0.32;
-
-  // Steering — direct-drag. playerX chases playerXTarget.
-  static const double steerFollow = 14.0;
-  static const double steerFollowChrono = 18.0;
-  // Keyboard steer acceleration (px/sec for target).
-  static const double keyboardSteer = 1800.0;
-
-  // Streak.
-  static const double streakPerMiss = 0.15;
-  static const double streakDecaySeconds = 2.5;
-  static const int maxStreakSteps = 9; // 1 + 9*0.15 = 2.35x
-
-  // Near-miss pixel thresholds (closest edge distance).
-  static const double nearMissTier3 = 16.0;
-  static const double nearMissTier2 = 28.0;
-  static const double nearMissTier1 = 44.0;
-  // Pillar thresholds are tighter.
-  static const double pillarNearMissTier2 = 14.0;
-  static const double pillarNearMissTier1 = 26.0;
-
-  // Score per px forward, at baseline.
-  static const double scorePerPx = 0.1;
+  // All tunable feel-knobs live in [GameTuning]. This class only owns
+  // simulation state.
 
   // ---------------------- Viewport ----------------------
   double viewW = 0.0;
@@ -99,7 +63,6 @@ class GameState extends ChangeNotifier {
   // Last chrono refund, for a transient HUD indicator.
   double meterRefundAmount = 0.0;
   double meterRefundTimer = 0.0;
-  static const double meterRefundDisplaySeconds = 0.9;
 
   // Crash overlays.
   double shake = 0.0;
@@ -165,8 +128,8 @@ class GameState extends ChangeNotifier {
 
   /// Keyboard nudge (direction = -1 or +1).
   void nudgeSteer(double direction, double realDt) {
-    playerXTarget =
-        _clampPlayerX(playerXTarget + direction * keyboardSteer * realDt);
+    playerXTarget = _clampPlayerX(
+        playerXTarget + direction * GameTuning.keyboardSteer * realDt);
   }
 
   void setChronoActive(bool active) {
@@ -176,8 +139,8 @@ class GameState extends ChangeNotifier {
   }
 
   double _clampPlayerX(double x) {
-    final lo = trackMargin + playerRadius + 4;
-    final hi = viewW - trackMargin - playerRadius - 4;
+    final lo = GameTuning.trackMargin + GameTuning.playerRadius + 4;
+    final hi = viewW - GameTuning.trackMargin - GameTuning.playerRadius - 4;
     if (hi <= lo) return viewW / 2;
     return x.clamp(lo, hi);
   }
@@ -194,17 +157,21 @@ class GameState extends ChangeNotifier {
 
     if (!gameOver) {
       // Forward speed.
-      final fwd = baseSpeed + min(speedDistBoostCap, distance * speedDistBoost);
+      final fwd = GameTuning.baseSpeed +
+          min(GameTuning.speedDistBoostCap,
+              distance * GameTuning.speedDistBoost);
       distance += fwd * dt;
 
       // Steering — real-time follow so slow-mo doesn't make steering mushy.
-      final k = chronoActive ? steerFollowChrono : steerFollow;
+      final k =
+          chronoActive ? GameTuning.steerFollowChrono : GameTuning.steerFollow;
       playerX += (playerXTarget - playerX) * min(1.0, realDt * k);
       playerX = _clampPlayerX(playerX);
 
       // Score.
-      final chronoScale = chronoActive ? 2.2 : 1.0;
-      score += fwd * dt * scorePerPx * chronoScale * streakMultiplier;
+      final chronoScale = chronoActive ? GameTuning.chronoScoreScale : 1.0;
+      score +=
+          fwd * dt * GameTuning.scorePerPx * chronoScale * streakMultiplier;
 
       _spawnObstacles();
       _cullAndAwardNearMiss();
@@ -246,20 +213,26 @@ class GameState extends ChangeNotifier {
   // ---------------------- Sub-steps ----------------------
   void _updateMeter(double realDt) {
     if (chronoActive && meter > 0) {
-      meter = max(0.0, meter - meterDrainPerSec * realDt);
+      meter = max(0.0, meter - GameTuning.meterDrainPerSec * realDt);
       if (meter <= 0) chronoActive = false;
     } else {
-      meter = min(1.0, meter + meterFillPerSec * realDt);
+      meter = min(1.0, meter + GameTuning.meterFillPerSec * realDt);
     }
   }
 
   void _updateTimeScale(double realDt) {
-    final target = chronoActive ? slowFactor : 1.0;
+    final target = chronoActive ? GameTuning.slowFactor : 1.0;
     timeScale += (target - timeScale) * min(1.0, realDt * 14.0);
   }
 
   // ---------------------- Obstacles ----------------------
-  double _difficulty() => min(1.6, distance / 12000.0);
+  /// Difficulty curve in 0..1.6 as a function of forward distance.
+  /// Pure; extracted as a static so tests can pin its shape without
+  /// spinning up a full simulation.
+  static double difficultyAt(double distance) =>
+      min(1.6, distance / 12000.0);
+
+  double _difficulty() => difficultyAt(distance);
 
   void _spawnObstacles() {
     // Keep spawning until there's enough runway ahead of the player.
@@ -279,7 +252,7 @@ class GameState extends ChangeNotifier {
     final minGap = 110.0 - d * 50.0;
     final maxGap = 190.0 - d * 60.0;
     final gap = max(70.0, _rand(minGap, maxGap));
-    final usable = viewW - trackMargin * 2;
+    final usable = viewW - GameTuning.trackMargin * 2;
 
     // Type selection, following the draft's vocabulary unlock curve.
     final types = <_Kind>[
@@ -296,9 +269,10 @@ class GameState extends ChangeNotifier {
     final thickness = _rand(22.0, 36.0);
     final color = _randomObstacleColor();
 
+    final m = GameTuning.trackMargin;
     switch (kind) {
       case _Kind.wall:
-        final gapX = _rand(trackMargin + gap / 2, viewW - trackMargin - gap / 2);
+        final gapX = _rand(m + gap / 2, viewW - m - gap / 2);
         obstacles.add(Obstacle.wall(
           worldY: worldY,
           thickness: thickness,
@@ -310,8 +284,8 @@ class GameState extends ChangeNotifier {
       case _Kind.slab:
         // Two walls close together, offset gaps.
         final gx1 = _rand(
-          trackMargin + gap / 2 + 40,
-          viewW - trackMargin - gap / 2 - 40,
+          m + gap / 2 + 40,
+          viewW - m - gap / 2 - 40,
         );
         obstacles.add(Obstacle.wall(
           worldY: worldY,
@@ -320,8 +294,7 @@ class GameState extends ChangeNotifier {
           gap: gap,
           color: color,
         ));
-        final gx2 =
-            _rand(trackMargin + gap / 2, viewW - trackMargin - gap / 2);
+        final gx2 = _rand(m + gap / 2, viewW - m - gap / 2);
         obstacles.add(Obstacle.wall(
           worldY: worldY + _rand(180.0, 260.0),
           thickness: thickness,
@@ -336,7 +309,7 @@ class GameState extends ChangeNotifier {
         final openIdx = rng.nextInt(count);
         for (var i = 0; i < count; i++) {
           if (i == openIdx) continue;
-          final x = trackMargin + laneW * i + laneW / 2;
+          final x = m + laneW * i + laneW / 2;
           obstacles.add(Obstacle.pillar(
             worldY: worldY,
             thickness: thickness,
@@ -347,13 +320,12 @@ class GameState extends ChangeNotifier {
         }
         break;
       case _Kind.diag:
-        final gx1 =
-            _rand(trackMargin + gap / 2, viewW - trackMargin - gap / 2);
+        final gx1 = _rand(m + gap / 2, viewW - m - gap / 2);
         final sign = rng.nextBool() ? -1.0 : 1.0;
         final raw = gx1 + sign * _rand(120.0, 220.0);
         final gx2 = raw.clamp(
-          trackMargin + gap / 2,
-          viewW - trackMargin - gap / 2,
+          m + gap / 2,
+          viewW - m - gap / 2,
         );
         obstacles.add(Obstacle.wall(
           worldY: worldY,
@@ -402,51 +374,45 @@ class GameState extends ChangeNotifier {
       final gapL = o.gapX - o.gap / 2;
       final gapR = o.gapX + o.gap / 2;
       final closest = min((px - gapL).abs(), (px - gapR).abs());
-      if (closest < nearMissTier3) return 3;
-      if (closest < nearMissTier2) return 2;
-      if (closest < nearMissTier1) return 1;
+      if (closest < GameTuning.nearMissTier3) return 3;
+      if (closest < GameTuning.nearMissTier2) return 2;
+      if (closest < GameTuning.nearMissTier1) return 1;
       return 0;
     } else {
       final closest =
           min((px - (o.x - o.halfW)).abs(), (px - (o.x + o.halfW)).abs());
-      if (closest < pillarNearMissTier2) return 2;
-      if (closest < pillarNearMissTier1) return 1;
+      if (closest < GameTuning.pillarNearMissTier2) return 2;
+      if (closest < GameTuning.pillarNearMissTier1) return 1;
       return 0;
     }
   }
-
-  // Meter refund per tier (fraction of the 0..1 bar). Tight shaves give
-  // back enough slow-mo to make aggressive play self-sustaining.
-  static const double meterRefundTier3 = 0.18;
-  static const double meterRefundTier2 = 0.10;
-  static const double meterRefundTier1 = 0.05;
 
   void _awardNearMiss(int tier, Obstacle o) {
     nearMisses += 1;
     final bonus = 40.0 * tier;
     score += bonus * streakMultiplier;
 
-    streakSteps = min(maxStreakSteps, streakSteps + 1);
-    streakMultiplier = 1.0 + streakSteps * streakPerMiss;
-    _streakTimer = streakDecaySeconds;
+    streakSteps = min(GameTuning.maxStreakSteps, streakSteps + 1);
+    streakMultiplier = 1.0 + streakSteps * GameTuning.streakPerMiss;
+    _streakTimer = GameTuning.streakDecaySeconds;
 
     final refund = tier == 3
-        ? meterRefundTier3
+        ? GameTuning.meterRefundTier3
         : tier == 2
-            ? meterRefundTier2
-            : meterRefundTier1;
+            ? GameTuning.meterRefundTier2
+            : GameTuning.meterRefundTier1;
     final before = meter;
     meter = (meter + refund).clamp(0.0, 1.0);
     final applied = meter - before;
     if (applied > 0) {
       meterRefundAmount = applied;
-      meterRefundTimer = meterRefundDisplaySeconds;
+      meterRefundTimer = GameTuning.meterRefundDisplaySeconds;
     }
 
     nearMissFlash = tier == 3 ? 'PERFECT' : 'NEAR MISS';
     _nearMissFlashTimer = 0.5;
 
-    _burst(playerX, viewH - playerBase, tier);
+    _burst(playerX, viewH - GameTuning.playerBase, tier);
   }
 
   void _decayStreak() {
@@ -454,14 +420,14 @@ class GameState extends ChangeNotifier {
     _streakTimer -= 1 / 60; // approx; exact cadence isn't critical
     if (_streakTimer <= 0) {
       streakSteps = max(0, streakSteps - 1);
-      streakMultiplier = 1.0 + streakSteps * streakPerMiss;
+      streakMultiplier = 1.0 + streakSteps * GameTuning.streakPerMiss;
       if (streakSteps > 0) _streakTimer = 1.5;
     }
   }
 
   // ---------------------- Collisions ----------------------
   void _checkCollisions() {
-    final py = viewH - playerBase;
+    final py = viewH - GameTuning.playerBase;
     for (final o in obstacles) {
       final screenY = py - (o.worldY - distance);
       if (screenY < -60 || screenY > viewH + 60) continue;
@@ -473,7 +439,7 @@ class GameState extends ChangeNotifier {
   }
 
   bool _hits(Obstacle o, double px, double py, double screenY) {
-    const r = playerRadius;
+    const r = GameTuning.playerRadius;
     final top = screenY - o.thickness / 2;
     final bot = screenY + o.thickness / 2;
     if (py + r < top || py - r > bot) return false;
@@ -499,7 +465,7 @@ class GameState extends ChangeNotifier {
     flashOpacity = 1.0;
 
     final cx = playerX;
-    final cy = viewH - playerBase;
+    final cy = viewH - GameTuning.playerBase;
     for (var i = 0; i < 60; i++) {
       final ang = rng.nextDouble() * pi * 2;
       final sp = _rand(120.0, 520.0);
@@ -544,7 +510,7 @@ class GameState extends ChangeNotifier {
 
   // ---------------------- Ambient ----------------------
   void _updateTrail() {
-    trail.add(TrailSample(playerX, viewH - playerBase, chronoActive));
+    trail.add(TrailSample(playerX, viewH - GameTuning.playerBase, chronoActive));
     if (trail.length > _maxTrail) trail.removeAt(0);
   }
 

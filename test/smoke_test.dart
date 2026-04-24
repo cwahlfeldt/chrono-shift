@@ -1,4 +1,4 @@
-import 'package:basic/main.dart';
+import 'package:chrono_swipe/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -7,7 +7,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('CHRONO'), findsOneWidget);
-    expect(find.text('SWIPE'), findsOneWidget);
+    expect(find.text('SHIFT'), findsOneWidget);
     expect(find.text('PLAY'), findsOneWidget);
   });
 }
