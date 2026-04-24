@@ -2,7 +2,7 @@ name: basic
 description: A basic game built in Flutter.
 
 # Prevent accidental publishing to pub.dev.
-publish_to: 'none'
+publish_to: "none"
 
 version: 0.0.1+1
 
@@ -38,6 +38,9 @@ flutter:
     - family: Permanent Marker
       fonts:
         - asset: assets/fonts/Permanent_Marker/PermanentMarker-Regular.ttf
+    - family: Krona One
+      fonts:
+        - asset: assets/fonts/KronaOne-Regular.ttf
 
 flutter_launcher_icons:
   android: true

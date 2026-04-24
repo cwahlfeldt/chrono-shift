@@ -56,18 +56,21 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 
   Widget _menuColumn(
-      BuildContext context, Palette palette, SettingsController settings) {
+    BuildContext context,
+    Palette palette,
+    SettingsController settings,
+  ) {
     return Column(
       children: [
         const Spacer(flex: 2),
         Text(
           'CHRONO',
           style: TextStyle(
-            fontFamily: 'Permanent Marker',
-            fontSize: 72,
+            fontFamily: 'Krona One',
+            fontSize: 54,
             height: 0.95,
             color: palette.white,
-            letterSpacing: 2,
+            // letterSpacing: 2,
             shadows: [
               Shadow(
                 color: palette.cyan.withValues(alpha: 0.9),
@@ -77,13 +80,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           ),
         ),
         Text(
-          'SWIPE',
+          'SHIFT',
           style: TextStyle(
-            fontFamily: 'Permanent Marker',
-            fontSize: 72,
+            fontFamily: 'Krona One',
+            fontSize: 54,
             height: 0.95,
             color: palette.cyan,
-            letterSpacing: 8,
+            letterSpacing: 24,
             shadows: [
               Shadow(
                 color: palette.gold.withValues(alpha: 0.8),
@@ -94,12 +97,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          'Thread the gap. Slow the world.',
-          style: TextStyle(
-            color: palette.dim,
-            fontSize: 14,
-            letterSpacing: 2,
-          ),
+          'Slow time & make it out alive.',
+          style: TextStyle(color: palette.dim, fontSize: 14, letterSpacing: 2),
         ),
         const Spacer(flex: 3),
         _bigPlayButton(context, palette),
@@ -109,7 +108,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             'BEST  $_best',
             style: TextStyle(
               color: palette.gold,
-              fontFamily: 'Permanent Marker',
+              fontFamily: 'Krona One',
               fontSize: 20,
               letterSpacing: 4,
             ),
@@ -152,20 +151,20 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 18),
         decoration: BoxDecoration(
           color: palette.cyan.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: palette.cyan, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: palette.cyan.withValues(alpha: 0.6),
-              blurRadius: 30,
-            ),
-          ],
+          // boxShadow: [
+          //   BoxShadow(
+          //     color: palette.cyan.withValues(alpha: 0.6),
+          //     blurRadius: 30,
+          //   ),
+          // ],
         ),
         child: Text(
           'PLAY',
           style: TextStyle(
-            fontFamily: 'Permanent Marker',
-            fontSize: 36,
+            fontFamily: 'Krona One',
+            fontSize: 28,
             color: palette.white,
             letterSpacing: 8,
           ),

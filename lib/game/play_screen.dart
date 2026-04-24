@@ -28,6 +28,11 @@ class _PlayScreenState extends State<PlayScreen>
   Duration _lastTick = Duration.zero;
   bool _scoreSaved = false;
 
+  // Haptics edge-detection. We fire on transitions, not on every frame.
+  bool _prevChronoActive = false;
+  int _prevNearMisses = 0;
+  bool _prevGameOver = false;
+
   // Input tracking.
   int? _activePointer;
   double _pointerHoldSeconds = 0.0;
@@ -88,6 +93,8 @@ class _PlayScreenState extends State<PlayScreen>
 
     _state.tick(dt);
 
+    _fireHaptics();
+
     if (_state.gameOver && !_scoreSaved) {
       _scoreSaved = true;
       _store.save(_state.highScore);
@@ -97,11 +104,43 @@ class _PlayScreenState extends State<PlayScreen>
     }
   }
 
+  void _fireHaptics() {
+    // Chrono engage / disengage — a light tick on each edge so the player
+    // feels the world shift even before they see it.
+    if (_state.chronoActive != _prevChronoActive) {
+      HapticFeedback.selectionClick();
+      _prevChronoActive = _state.chronoActive;
+    }
+
+    // Near-miss. `nearMisses` increments once per award; the flash text
+    // carries the tier (PERFECT = tier 3, NEAR MISS = tier 1 or 2).
+    if (_state.nearMisses != _prevNearMisses) {
+      if (_state.nearMissFlash == 'PERFECT') {
+        HapticFeedback.mediumImpact();
+      } else {
+        HapticFeedback.lightImpact();
+      }
+      _prevNearMisses = _state.nearMisses;
+    }
+
+    // Crash.
+    if (_state.gameOver && !_prevGameOver) {
+      HapticFeedback.heavyImpact();
+      _prevGameOver = true;
+    } else if (!_state.gameOver && _prevGameOver) {
+      // Reset on retry so the next crash fires again.
+      _prevGameOver = false;
+    }
+  }
+
   void _restart() {
     _scoreSaved = false;
     _state.reset();
     _activePointer = null;
     _pointerHoldSeconds = 0.0;
+    _prevChronoActive = false;
+    _prevNearMisses = 0;
+    _prevGameOver = false;
   }
 
   @override
@@ -231,14 +270,19 @@ class _Hud extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _pill('SCORE', '${state.score.floor()}', palette.cyan,
-                        palette),
+                    _pill(
+                      'SCORE',
+                      '${state.score.floor()}',
+                      palette.cyan,
+                      palette,
+                    ),
                     _pill('BEST', '${state.highScore}', palette.gold, palette),
                     _pill(
-                        'CHRONO',
-                        '${(state.meter * 100).round()}%',
-                        state.chronoActive ? palette.cyan : palette.white,
-                        palette),
+                      'CHRONO',
+                      '${(state.meter * 100).round()}%',
+                      state.chronoActive ? palette.cyan : palette.white,
+                      palette,
+                    ),
                   ],
                 ),
                 const Spacer(),
@@ -250,7 +294,7 @@ class _Hud extends StatelessWidget {
                         'x${state.streakMultiplier.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: palette.gold,
-                          fontFamily: 'Permanent Marker',
+                          fontFamily: 'Krona One',
                           fontSize: 22,
                           shadows: [
                             Shadow(
@@ -290,8 +334,10 @@ class _Hud extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xcc0a1230),
-        border:
-            Border.all(color: palette.cyan.withValues(alpha: 0.22), width: 1),
+        border: Border.all(
+          color: palette.cyan.withValues(alpha: 0.22),
+          width: 1,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -387,8 +433,7 @@ class _GameOverCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xcc0a1230),
             borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: palette.cyan.withValues(alpha: 0.5)),
+            border: Border.all(color: palette.cyan.withValues(alpha: 0.5)),
             boxShadow: [
               BoxShadow(
                 color: palette.cyan.withValues(alpha: 0.2),
@@ -402,7 +447,7 @@ class _GameOverCard extends StatelessWidget {
               Text(
                 isNewBest ? 'NEW PERSONAL BEST' : 'CRASHED',
                 style: TextStyle(
-                  fontFamily: 'Permanent Marker',
+                  fontFamily: 'Krona One',
                   fontSize: isNewBest ? 22 : 26,
                   color: isNewBest ? palette.gold : palette.red,
                   letterSpacing: 3,
@@ -412,7 +457,7 @@ class _GameOverCard extends StatelessWidget {
               Text(
                 '$scoreInt',
                 style: TextStyle(
-                  fontFamily: 'Permanent Marker',
+                  fontFamily: 'Krona One',
                   fontSize: 68,
                   height: 1.0,
                   color: palette.gold,

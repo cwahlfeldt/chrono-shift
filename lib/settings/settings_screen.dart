@@ -23,7 +23,7 @@ class SettingsScreen extends StatelessWidget {
         title: Text(
           'SETTINGS',
           style: TextStyle(
-            fontFamily: 'Permanent Marker',
+            fontFamily: 'Krona One',
             color: palette.white,
             letterSpacing: 4,
             fontSize: 22,
@@ -77,7 +77,9 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => GoRouter.of(context).pop(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 36, vertical: 12),
+                      horizontal: 36,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(color: palette.cyan),
@@ -100,8 +102,13 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _line(Palette palette, String title, IconData icon, bool active,
-      VoidCallback onTap) {
+  Widget _line(
+    Palette palette,
+    String title,
+    IconData icon,
+    bool active,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -126,8 +133,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(icon,
-                color: active ? palette.cyan : palette.dim, size: 24),
+            Icon(icon, color: active ? palette.cyan : palette.dim, size: 24),
           ],
         ),
       ),

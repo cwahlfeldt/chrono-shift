@@ -144,15 +144,14 @@ class GamePainter extends CustomPainter {
   }
 
   void _paintWall(Canvas canvas, Size size, Obstacle o, double y) {
-    final m = GameState.trackMargin;
     final gapL = o.gapX - o.gap / 2;
     final gapR = o.gapX + o.gap / 2;
     final th = o.thickness;
 
     // Glow body. Using a layered draw (blur + crisp) gets the neon look
     // without relying on canvas shadow filters that cost a lot on web.
-    final glowR = Rect.fromLTWH(m, y - th / 2, gapL - m, th);
-    final glowR2 = Rect.fromLTWH(gapR, y - th / 2, (size.width - m) - gapR, th);
+    final glowR = Rect.fromLTWH(0, y - th / 2, gapL, th);
+    final glowR2 = Rect.fromLTWH(gapR, y - th / 2, size.width - gapR, th);
 
     final blur = Paint()
       ..color = o.color.withValues(alpha: state.chronoActive ? 0.75 : 0.55)
@@ -279,7 +278,7 @@ class GamePainter extends CustomPainter {
       text: TextSpan(
         text: t,
         style: TextStyle(
-          fontFamily: 'Permanent Marker',
+          fontFamily: 'Krona One',
           fontSize: 24,
           color: color,
           letterSpacing: 3,
