@@ -1,4 +1,4 @@
-import 'package:chrono_swipe/main.dart';
+import 'package:chrono_shift/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

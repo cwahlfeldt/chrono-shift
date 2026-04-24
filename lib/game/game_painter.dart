@@ -83,16 +83,58 @@ class GamePainter extends CustomPainter {
   void _paintStars(Canvas canvas, Size size) {
     final active = state.chronoActive;
     final color = active ? const Color(0xffa9f4ff) : const Color(0xffcfd8ff);
+
+    // Trails only show in-run. On the idle/menu backdrop the sim sets
+    // running=false, so we skip trail rendering entirely there.
+    final trailBlend = state.running ? state.starTrailBlend : 0.0;
+
+    // Trail length grows with forward speed past baseline. Floored at
+    // a small baseline so there's always some streak visible when
+    // moving — zero-trail stars read as static and break the motion
+    // illusion.
+    final speedOverBase = state.distance * GameTuning.speedDistBoost;
+    final speedK =
+        (speedOverBase / GameTuning.speedDistBoostCap).clamp(0.0, 1.0);
+    const baselineTrailPx = 14.0;
+    const maxTrailPx = 60.0;
+    final trailScale = (baselineTrailPx + (maxTrailPx - baselineTrailPx) * speedK) * trailBlend;
+
+    final head = Paint();
+    // Trail is flat white; per-star alpha and width are set below so
+    // the streak matches the star it's coming from.
+    final tail = Paint()..strokeCap = StrokeCap.butt;
+    const white = Color(0xffffffff);
+
     for (final s in state.stars) {
       final sx = s.x * size.width;
-      // Scroll stars by distance * z so nearer (high-z) stars move faster.
       var sy = (s.y * size.height + state.distance * 0.2 * s.z) % size.height;
       if (sy < 0) sy += size.height;
-      final r = s.z * 2.0;
-      canvas.drawRect(
-        Rect.fromLTWH(sx, sy, r, r),
-        Paint()..color = color.withValues(alpha: 0.3 + 0.6 * s.z),
-      );
+      final r = s.z * 1.2;
+
+      // Per-star alpha drives a sense of depth: distant (low-z) stars
+      // dim, near (high-z) stars bright. Trail uses the same alpha so
+      // a faint star has a faint trail. Tuned low overall so the
+      // starfield stays background, not focal.
+      final starAlpha = 0.15 + 0.4 * s.z;
+
+      // Trail first, so the star head sits on top of it. Near stars
+      // (high z) streak further than distant ones. Trail is centered
+      // under the head rect (which is drawn LTWH from sx), so it
+      // matches the head visually rather than hugging its left edge.
+      final headCenterX = sx + r / 2;
+      if (trailScale > 0.1) {
+        final len = trailScale * s.z;
+        tail.color = white.withValues(alpha: starAlpha);
+        tail.strokeWidth = r; // trail thickness = star size
+        canvas.drawLine(
+          Offset(headCenterX, sy - len),
+          Offset(headCenterX, sy + r / 2),
+          tail,
+        );
+      }
+
+      head.color = color.withValues(alpha: starAlpha);
+      canvas.drawRect(Rect.fromLTWH(sx, sy, r, r), head);
     }
   }
 

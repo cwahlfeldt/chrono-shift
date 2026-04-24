@@ -1,8 +1,8 @@
-import 'package:chrono_swipe/game/game_painter.dart';
-import 'package:chrono_swipe/game/game_state.dart';
-import 'package:chrono_swipe/game/game_tuning.dart';
-import 'package:chrono_swipe/game/models.dart';
-import 'package:chrono_swipe/style/palette.dart';
+import 'package:chrono_shift/game/game_painter.dart';
+import 'package:chrono_shift/game/game_state.dart';
+import 'package:chrono_shift/game/game_tuning.dart';
+import 'package:chrono_shift/game/models.dart';
+import 'package:chrono_shift/style/palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

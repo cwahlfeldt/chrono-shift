@@ -47,6 +47,11 @@ class GameState extends ChangeNotifier {
   double meter = 1.0;       // 0..1
   bool chronoActive = false;
 
+  /// Blend for star trails. Eases toward 1.0 normally and 0.0 while
+  /// chrono is active. Decays slower than timeScale so the trail
+  /// recedes gradually rather than snapping off.
+  double starTrailBlend = 1.0;
+
   double distance = 0.0;    // world-Y travelled (pixels)
   double playerX = 0.0;     // screen x
   double playerXTarget = 0.0;
@@ -87,6 +92,7 @@ class GameState extends ChangeNotifier {
     timeScale = 1.0;
     meter = 1.0;
     chronoActive = false;
+    starTrailBlend = 1.0;
     distance = 0.0;
     playerX = viewW / 2;
     playerXTarget = viewW / 2;
@@ -107,7 +113,7 @@ class GameState extends ChangeNotifier {
     nextObstacleAt = (viewH > 0 ? viewH : 800) * 1.2;
 
     if (stars.isEmpty) {
-      for (var i = 0; i < 140; i++) {
+      for (var i = 0; i < 80; i++) {
         stars.add(
             Star(rng.nextDouble(), rng.nextDouble(), 0.2 + rng.nextDouble() * 0.8));
       }
@@ -223,6 +229,12 @@ class GameState extends ChangeNotifier {
   void _updateTimeScale(double realDt) {
     final target = chronoActive ? GameTuning.slowFactor : 1.0;
     timeScale += (target - timeScale) * min(1.0, realDt * 14.0);
+
+    // Star trails drain quickly when chrono engages so the recede
+    // feels deliberate, but still soft — not a hard cut.
+    final trailTarget = chronoActive ? 0.0 : 1.0;
+    starTrailBlend +=
+        (trailTarget - starTrailBlend) * min(1.0, realDt * 6.0);
   }
 
   // ---------------------- Obstacles ----------------------

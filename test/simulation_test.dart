@@ -1,8 +1,8 @@
 import 'dart:ui' show Color, Size;
 
-import 'package:chrono_swipe/game/game_state.dart';
-import 'package:chrono_swipe/game/game_tuning.dart';
-import 'package:chrono_swipe/game/models.dart';
+import 'package:chrono_shift/game/game_state.dart';
+import 'package:chrono_shift/game/game_tuning.dart';
+import 'package:chrono_shift/game/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Pure-Dart simulation tests. GameState is engine-free and viewport-
