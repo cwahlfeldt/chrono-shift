@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -45,6 +47,13 @@ class _PlayScreenState extends State<PlayScreen>
   final Set<LogicalKeyboardKey> _keysDown = {};
   final FocusNode _focus = FocusNode();
 
+  // Intro state: player slide-up + 3-2-1 countdown. Gated by
+  // [GameTuning.introEnabled] so dev builds can skip it.
+  _IntroPhase _introPhase = _IntroPhase.running;
+  double _introTimer = 0.0;
+  int _countdownShown = 0; // last tick we showed, for haptics
+  int? _prevCountdownNumber;
+
   @override
   void initState() {
     super.initState();
@@ -56,10 +65,35 @@ class _PlayScreenState extends State<PlayScreen>
   Future<void> _boot() async {
     _state.highScore = await _store.load();
     _state.reset();
+    _beginIntro();
     _lastTick = Duration.zero;
     _ticker.start();
     _focus.requestFocus();
     if (mounted) setState(() {});
+  }
+
+  /// Kick off the slide-up + countdown intro. No-op when the feature
+  /// flag is off — we just leave the state running immediately.
+  void _beginIntro() {
+    if (!GameTuning.introEnabled) {
+      _introPhase = _IntroPhase.running;
+      _state.running = true;
+      _state.playerYOverride = null;
+      return;
+    }
+    _introPhase = _IntroPhase.sliding;
+    _introTimer = 0.0;
+    _countdownShown = 0;
+    _prevCountdownNumber = null;
+    // Pause real gameplay until the intro completes. reset() turned
+    // running on; we override it here.
+    _state.running = false;
+    // Start the player off-screen below; the slide phase lerps it up.
+    // viewH may be 0 before the first layout pass — _onTick will patch
+    // the override once the viewport is known.
+    if (_state.viewH > 0) {
+      _state.playerYOverride = _state.viewH + 40;
+    }
   }
 
   void _onTick(Duration elapsed) {
@@ -70,6 +104,16 @@ class _PlayScreenState extends State<PlayScreen>
     final rawDt = (elapsed - _lastTick).inMicroseconds / 1e6;
     _lastTick = elapsed;
     final dt = rawDt.clamp(0.0, 1 / 24);
+
+    // Intro phases short-circuit normal input + tick. The sim is still
+    // advanced via idleTick so the starfield drifts during the wait —
+    // but much slower than the menu backdrop so the field feels almost
+    // still before the run starts.
+    if (_introPhase != _IntroPhase.running) {
+      _advanceIntro(dt);
+      _state.idleTick(dt, speedScale: 0.1);
+      return;
+    }
 
     // Keyboard nudge for steering (fallback for desktop).
     if (!_state.gameOver) {
@@ -142,6 +186,58 @@ class _PlayScreenState extends State<PlayScreen>
     _prevChronoActive = false;
     _prevNearMisses = 0;
     _prevGameOver = false;
+    _beginIntro();
+  }
+
+  /// Advance the intro state machine by [dt] real seconds. Writes to
+  /// [GameState.playerYOverride] during the slide phase and fires a
+  /// haptic tick on each countdown number change.
+  void _advanceIntro(double dt) {
+    _introTimer += dt;
+
+    if (_introPhase == _IntroPhase.sliding) {
+      final baseY = _state.viewH - GameTuning.playerBase;
+      // Keep the off-screen start pinned relative to the current
+      // viewport (in case layout arrived late).
+      final startY = _state.viewH + 40;
+      final t = (_introTimer / GameTuning.introSlideSeconds).clamp(0.0, 1.0);
+      // Ease-out cubic — snappy start, soft landing.
+      final eased = 1 - pow(1 - t, 3).toDouble();
+      _state.playerYOverride = startY + (baseY - startY) * eased;
+
+      if (t >= 1.0) {
+        _state.playerYOverride = baseY;
+        _introPhase = _IntroPhase.countdown;
+        _introTimer = 0.0;
+      }
+      return;
+    }
+
+    if (_introPhase == _IntroPhase.countdown) {
+      // 3 → 2 → 1 at introCountdownTickSeconds apart. When the elapsed
+      // time exceeds the whole span, start the run.
+      final total = 3 * GameTuning.introCountdownTickSeconds;
+      final current = 3 - (_introTimer / GameTuning.introCountdownTickSeconds)
+          .floor();
+      final shown = current.clamp(1, 3);
+
+      if (_prevCountdownNumber != shown) {
+        _prevCountdownNumber = shown;
+        _countdownShown = shown;
+        HapticFeedback.selectionClick();
+      }
+
+      if (_introTimer >= total) {
+        _introPhase = _IntroPhase.running;
+        _state.playerYOverride = null;
+        _state.running = true;
+        // Start forward motion + trails from 0 and ramp up, so the
+        // transition from the near-still intro feels continuous.
+        _state.introSpeedRamp = 0.0;
+        // Small "GO" kick.
+        HapticFeedback.mediumImpact();
+      }
+    }
   }
 
   @override
@@ -226,6 +322,18 @@ class _PlayScreenState extends State<PlayScreen>
                     ),
                   ),
                   _Hud(state: _state, palette: palette),
+                  AnimatedBuilder(
+                    animation: _state,
+                    builder: (context, _) {
+                      if (_introPhase == _IntroPhase.countdown) {
+                        return _CountdownOverlay(
+                          number: _countdownShown,
+                          palette: palette,
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   AnimatedBuilder(
                     animation: _state,
                     builder: (context, _) {
@@ -599,3 +707,36 @@ class _GameOverCard extends StatelessWidget {
     );
   }
 }
+
+// ---------------- Countdown overlay ----------------
+
+class _CountdownOverlay extends StatelessWidget {
+  final int number;
+  final Palette palette;
+  const _CountdownOverlay({required this.number, required this.palette});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Center(
+        child: Text(
+          '$number',
+          style: TextStyle(
+            fontFamily: 'Krona One',
+            fontSize: 120,
+            height: 1.0,
+            color: palette.cyan,
+            shadows: [
+              Shadow(
+                color: palette.cyan.withValues(alpha: 0.7),
+                blurRadius: 30,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _IntroPhase { sliding, countdown, running }

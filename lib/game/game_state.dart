@@ -52,9 +52,20 @@ class GameState extends ChangeNotifier {
   /// recedes gradually rather than snapping off.
   double starTrailBlend = 1.0;
 
+  /// Ramps forward speed from 0 to 1 at the start of a run. The first
+  /// few frames after the countdown ends use this to avoid a jarring
+  /// instant jump from the idle creep to full speed. Set to 0 when a
+  /// run begins; eases toward 1 via [tick].
+  double introSpeedRamp = 1.0;
+
   double distance = 0.0;    // world-Y travelled (pixels)
   double playerX = 0.0;     // screen x
   double playerXTarget = 0.0;
+
+  /// Optional override for the player's screen-y. When null the
+  /// painter uses the standard `viewH - playerBase`. Used by the
+  /// PlayScreen intro to slide the player up from below.
+  double? playerYOverride;
 
   double score = 0.0;
   int nearMisses = 0;
@@ -93,9 +104,11 @@ class GameState extends ChangeNotifier {
     meter = 1.0;
     chronoActive = false;
     starTrailBlend = 1.0;
+    introSpeedRamp = 1.0;
     distance = 0.0;
     playerX = viewW / 2;
     playerXTarget = viewW / 2;
+    playerYOverride = null;
     score = 0.0;
     nearMisses = 0;
     streakSteps = 0;
@@ -113,9 +126,13 @@ class GameState extends ChangeNotifier {
     nextObstacleAt = (viewH > 0 ? viewH : 800) * 1.2;
 
     if (stars.isEmpty) {
+      // Deterministic seed so the starfield is identical across
+      // GameState instances — lets the menu backdrop and the play
+      // screen share the same visual frame at the route transition.
+      final seeded = Random(1999);
       for (var i = 0; i < 80; i++) {
-        stars.add(
-            Star(rng.nextDouble(), rng.nextDouble(), 0.2 + rng.nextDouble() * 0.8));
+        stars.add(Star(seeded.nextDouble(), seeded.nextDouble(),
+            0.2 + seeded.nextDouble() * 0.8));
       }
     }
 
@@ -161,11 +178,24 @@ class GameState extends ChangeNotifier {
     final dt = realDt * timeScale;
     gameTime += dt;
 
+    // Ease the intro ramp toward 1.0. Used to smoothly transition
+    // from the (near-still) intro idle drift into full forward speed.
+    // Rate ~2/s → roughly 0.5s to reach full speed, with the feel
+    // front-loaded by the multiplicative lerp.
+    if (introSpeedRamp < 1.0) {
+      introSpeedRamp = min(
+        1.0,
+        introSpeedRamp + (1.0 - introSpeedRamp) * min(1.0, realDt * 2.5),
+      );
+    }
+
     if (!gameOver) {
-      // Forward speed.
-      final fwd = GameTuning.baseSpeed +
-          min(GameTuning.speedDistBoostCap,
-              distance * GameTuning.speedDistBoost);
+      // Forward speed. Scaled by introSpeedRamp so a run doesn't start
+      // with a jarring instant jump from idle creep.
+      final fwd = (GameTuning.baseSpeed +
+              min(GameTuning.speedDistBoostCap,
+                  distance * GameTuning.speedDistBoost)) *
+          introSpeedRamp;
       distance += fwd * dt;
 
       // Steering — real-time follow so slow-mo doesn't make steering mushy.
@@ -207,11 +237,15 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Idle drift — used by the menu backdrop. Stars + forward illusion, no
-  /// obstacles, no scoring.
-  void idleTick(double realDt) {
+  /// Idle drift — used by the menu backdrop and the PlayScreen intro.
+  /// Stars + forward illusion, no obstacles, no scoring.
+  ///
+  /// [speedScale] multiplies the baseline drift; the PlayScreen intro
+  /// uses a small value so the world barely creeps before the run
+  /// starts, while the menu uses the default.
+  void idleTick(double realDt, {double speedScale = 1.0}) {
     timeScale = 1.0;
-    distance += 80 * realDt; // gentle forward drift for star parallax
+    distance += 80 * realDt * speedScale;
     _tickStars(realDt);
     notifyListeners();
   }

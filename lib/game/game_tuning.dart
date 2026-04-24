@@ -96,4 +96,18 @@ class GameTuning {
   /// How long the transient "+N%" chrono-refund indicator stays on the
   /// HUD before fading.
   static const double meterRefundDisplaySeconds = 0.9;
+
+  // ---------- Intro ----------
+
+  /// When true, PlayScreen runs a slide-up + 3-2-1 countdown before
+  /// the game begins. Turn off to jump straight into a run for faster
+  /// iteration on gameplay.
+  static const bool introEnabled = true;
+
+  /// Seconds the player takes to slide from off-screen-bottom to its
+  /// resting [GameTuning.playerBase].
+  static const double introSlideSeconds = 0.45;
+
+  /// Seconds per countdown tick. 3 ticks → total intro tail.
+  static const double introCountdownTickSeconds = 0.7;
 }

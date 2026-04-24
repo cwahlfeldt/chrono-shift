@@ -20,6 +20,7 @@ class MainMenuScreen extends StatefulWidget {
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
   int _best = 0;
+  bool _leaving = false;
 
   @override
   void initState() {
@@ -33,13 +34,28 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     if (mounted && v != _best) setState(() => _best = v);
   }
 
+  /// Reset the leaving animation state whenever the menu is reshown.
+  /// go_router keeps this screen in the tree, so _leaving would stay
+  /// true after a navigation back from /play.
+  void _resetLeavingIfNeeded() {
+    if (_leaving) {
+      // Schedule for after build — can't call setState from within build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _leaving) setState(() => _leaving = false);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // go_router keeps this screen in the tree under /play, so initState
     // doesn't re-run when the player returns from a run. Re-read the
     // stored best on each build — SharedPreferences is cached after the
-    // first hit, so it's effectively free.
+    // first hit, so it's effectively free. Same reason we have to
+    // clear the leaving animation here: navigating back lands on the
+    // same State and _leaving would otherwise stay true.
     _loadBest();
+    _resetLeavingIfNeeded();
     final palette = context.watch<Palette>();
     final settings = context.watch<SettingsController>();
 
@@ -49,16 +65,45 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         fit: StackFit.expand,
         children: [
           const IdleBackdrop(),
-          Container(color: Colors.black.withValues(alpha: 0.35)),
+          // Scrim also fades out so the frame handed off to PlayScreen
+          // matches what PlayScreen itself draws (no scrim there).
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 320),
+            opacity: _leaving ? 0.0 : 1.0,
+            child: Container(color: Colors.black.withValues(alpha: 0.35)),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
-              child: _menuColumn(context, palette, settings),
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeInCubic,
+                offset: _leaving ? const Offset(0, -0.15) : Offset.zero,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 320),
+                  opacity: _leaving ? 0.0 : 1.0,
+                  child: _menuColumn(context, palette, settings),
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Fade the menu out AND navigate in the same frame — PlayScreen's
+  /// intro (slide-up + countdown) begins immediately so the action
+  /// feels instantaneous. The backdrop's starfield is deterministic
+  /// and identical across GameState instances, so the route change
+  /// is invisible; only the UI lifts away.
+  void _playTapped() {
+    if (_leaving) return;
+    try {
+      context.read<AudioController>().playSfx(SfxType.buttonTap);
+    } catch (_) {}
+    setState(() => _leaving = true);
+    context.go('/play');
   }
 
   Widget _menuColumn(
@@ -147,12 +192,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   Widget _bigPlayButton(BuildContext context, Palette palette) {
     return GestureDetector(
-      onTap: () {
-        try {
-          context.read<AudioController>().playSfx(SfxType.buttonTap);
-        } catch (_) {}
-        context.go('/play');
-      },
+      onTap: _playTapped,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 18),
         decoration: BoxDecoration(

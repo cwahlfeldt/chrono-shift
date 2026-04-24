@@ -85,19 +85,27 @@ class GamePainter extends CustomPainter {
     final color = active ? const Color(0xffa9f4ff) : const Color(0xffcfd8ff);
 
     // Trails only show in-run. On the idle/menu backdrop the sim sets
-    // running=false, so we skip trail rendering entirely there.
-    final trailBlend = state.running ? state.starTrailBlend : 0.0;
+    // running=false, so we skip trail rendering entirely there. The
+    // introSpeedRamp factor folds in the start-of-run ramp, so trails
+    // fade up smoothly instead of snapping on when running flips.
+    final trailBlend = state.running
+        ? state.starTrailBlend * state.introSpeedRamp
+        : 0.0;
 
     // Trail length grows with forward speed past baseline. Floored at
     // a small baseline so there's always some streak visible when
     // moving — zero-trail stars read as static and break the motion
     // illusion.
     final speedOverBase = state.distance * GameTuning.speedDistBoost;
-    final speedK =
-        (speedOverBase / GameTuning.speedDistBoostCap).clamp(0.0, 1.0);
-    const baselineTrailPx = 14.0;
+    final speedK = (speedOverBase / GameTuning.speedDistBoostCap).clamp(
+      0.0,
+      1.0,
+    );
+    const baselineTrailPx = 6.0;
     const maxTrailPx = 60.0;
-    final trailScale = (baselineTrailPx + (maxTrailPx - baselineTrailPx) * speedK) * trailBlend;
+    final trailScale =
+        (baselineTrailPx + (maxTrailPx - baselineTrailPx) * speedK) *
+        trailBlend;
 
     final head = Paint();
     // Trail is flat white; per-star alpha and width are set below so
@@ -109,13 +117,22 @@ class GamePainter extends CustomPainter {
       final sx = s.x * size.width;
       var sy = (s.y * size.height + state.distance * 0.2 * s.z) % size.height;
       if (sy < 0) sy += size.height;
-      final r = s.z * 1.2;
+      // Per-star size variance in ~[0.6, 1.4], derived from s.x so it's
+      // deterministic without adding a field to Star. A few stars end
+      // up noticeably bigger, most sit near the baseline.
+      final sizeJitter = 0.6 + 0.8 * s.x;
+      final r = (s.z * 1.2 * sizeJitter).clamp(0.3, 2.2);
 
       // Per-star alpha drives a sense of depth: distant (low-z) stars
-      // dim, near (high-z) stars bright. Trail uses the same alpha so
-      // a faint star has a faint trail. Tuned low overall so the
-      // starfield stays background, not focal.
-      final starAlpha = 0.15 + 0.4 * s.z;
+      // dim, near (high-z) stars bright. Idle/menu stars sit brighter
+      // so they're legible against the dark backdrop; in-run they
+      // tone down to stay background. We blend between the two using
+      // introSpeedRamp so the intro→running transition doesn't pop.
+      final idleAlpha = 0.18 + 0.55 * s.z;
+      final runAlpha = 0.06 + 0.35 * s.z;
+      final blend =
+          state.running ? state.introSpeedRamp.clamp(0.0, 1.0) : 0.0;
+      final starAlpha = idleAlpha + (runAlpha - idleAlpha) * blend;
 
       // Trail first, so the star head sits on top of it. Near stars
       // (high z) streak further than distant ones. Trail is centered
@@ -134,6 +151,19 @@ class GamePainter extends CustomPainter {
       }
 
       head.color = color.withValues(alpha: starAlpha);
+      // Distant stars get a soft look: an oversized low-alpha square
+      // underneath the crisp head. Reads as blur without the per-draw
+      // gaussian cost of MaskFilter.blur.
+      if (s.z < 0.6) {
+        final softness = (0.6 - s.z) / 0.4; // 0..1 for z in [0.2, 0.6]
+        final soft = r + 1.5 * softness;
+        final softPaint = Paint()
+          ..color = color.withValues(alpha: starAlpha * 0.35 * softness);
+        canvas.drawRect(
+          Rect.fromLTWH(sx - (soft - r) / 2, sy - (soft - r) / 2, soft, soft),
+          softPaint,
+        );
+      }
       canvas.drawRect(Rect.fromLTWH(sx, sy, r, r), head);
     }
   }
@@ -267,8 +297,13 @@ class GamePainter extends CustomPainter {
 
   void _paintPlayer(Canvas canvas, Size size) {
     if (state.gameOver) return;
+    // On the menu backdrop the sim stays parked (running=false, no
+    // override set). Skip the player entirely there — it should only
+    // appear when a run is in progress or when the PlayScreen intro
+    // has started sliding it up from below.
+    if (!state.running && state.playerYOverride == null) return;
     final x = state.playerX;
-    final y = size.height - GameTuning.playerBase;
+    final y = state.playerYOverride ?? (size.height - GameTuning.playerBase);
     final active = state.chronoActive;
     final ringColor = active ? palette.cyan : palette.gold;
     final core = active ? const Color(0xffa9f4ff) : const Color(0xfffff6c9);
