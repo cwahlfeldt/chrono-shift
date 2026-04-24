@@ -96,6 +96,11 @@ class GameState extends ChangeNotifier {
   String? nearMissFlash;
   double _nearMissFlashTimer = 0.0;
 
+  // Last chrono refund, for a transient HUD indicator.
+  double meterRefundAmount = 0.0;
+  double meterRefundTimer = 0.0;
+  static const double meterRefundDisplaySeconds = 0.9;
+
   // Crash overlays.
   double shake = 0.0;
   double flashOpacity = 0.0;
@@ -129,6 +134,8 @@ class GameState extends ChangeNotifier {
     _streakTimer = 0.0;
     nearMissFlash = null;
     _nearMissFlashTimer = 0.0;
+    meterRefundAmount = 0.0;
+    meterRefundTimer = 0.0;
     shake = 0.0;
     flashOpacity = 0.0;
     obstacles.clear();
@@ -217,6 +224,11 @@ class GameState extends ChangeNotifier {
     if (_nearMissFlashTimer > 0) {
       _nearMissFlashTimer -= realDt;
       if (_nearMissFlashTimer <= 0) nearMissFlash = null;
+    }
+
+    if (meterRefundTimer > 0) {
+      meterRefundTimer -= realDt;
+      if (meterRefundTimer <= 0) meterRefundAmount = 0.0;
     }
 
     notifyListeners();
@@ -423,7 +435,13 @@ class GameState extends ChangeNotifier {
         : tier == 2
             ? meterRefundTier2
             : meterRefundTier1;
+    final before = meter;
     meter = (meter + refund).clamp(0.0, 1.0);
+    final applied = meter - before;
+    if (applied > 0) {
+      meterRefundAmount = applied;
+      meterRefundTimer = meterRefundDisplaySeconds;
+    }
 
     nearMissFlash = tier == 3 ? 'PERFECT' : 'NEAR MISS';
     _nearMissFlashTimer = 0.5;

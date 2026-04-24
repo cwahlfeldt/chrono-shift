@@ -40,6 +40,7 @@ class GamePainter extends CustomPainter {
     // _paintTrackEdges(canvas, size);
     // _paintCenterStripe(canvas, size);
     _paintObstacles(canvas, size);
+    _paintSpeedLines(canvas, size);
     _paintTrail(canvas, size);
     _paintPlayer(canvas, size);
     _paintParticles(canvas, size);
@@ -195,6 +196,82 @@ class GamePainter extends CustomPainter {
     canvas.drawRect(rect, blur);
 
     canvas.drawRect(rect, Paint()..color = o.color);
+  }
+
+  // ---------- Speed lines ----------
+
+  void _paintSpeedLines(Canvas canvas, Size size) {
+    // Intensity tracks how far past the baseline speed we are. 0 at
+    // baseSpeed, 1 at the full distance-boost cap. Chrono-shift dampens
+    // it — slow-mo should feel calmer, not faster.
+    final boost = min(
+      GameState.speedDistBoostCap,
+      state.distance * GameState.speedDistBoost,
+    );
+    var k = (boost / GameState.speedDistBoostCap).clamp(0.0, 1.0);
+    // Only start drawing past ~30% of the boost so early game is clean.
+    if (k < 0.3) return;
+    k = (k - 0.3) / 0.7;
+    k *= (0.25 + 0.75 * state.timeScale);
+
+    final w = size.width;
+    final h = size.height;
+    final py = h - GameState.playerBase;
+
+    // Edge vignette — cheap radial-ish darken from the sides. Two thin
+    // gradient rects is enough to sell it without a real radial shader.
+    final vignetteAlpha = 0.35 * k;
+    final left = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset.zero,
+        Offset(w * 0.28, 0),
+        [Colors.black.withValues(alpha: vignetteAlpha), const Color(0x00000000)],
+      );
+    canvas.drawRect(Rect.fromLTWH(0, 0, w * 0.28, h), left);
+    final right = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(w, 0),
+        Offset(w * 0.72, 0),
+        [Colors.black.withValues(alpha: vignetteAlpha), const Color(0x00000000)],
+      );
+    canvas.drawRect(Rect.fromLTWH(w * 0.72, 0, w * 0.28, h), right);
+
+    // Motion streaks — a handful of vertical lines on each side whose
+    // length/phase scroll with distance. Reuse a single Paint; mutate
+    // color per line.
+    const lineCount = 7;
+    final scroll = state.distance * 0.6;
+    final streak = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.4;
+    final baseColor = state.chronoActive
+        ? palette.cyan
+        : const Color(0xffcfd8ff);
+
+    for (var i = 0; i < lineCount; i++) {
+      // Deterministic pseudo-random offsets so the streaks don't flicker
+      // frame-to-frame.
+      final seed = i * 97.0;
+      final laneL = 2.0 + (i * 11.0) % (w * 0.22);
+      final laneR = w - 2.0 - ((i * 13.0) + 5.0) % (w * 0.22);
+      final len = 60.0 + ((i * 31.0) % 90.0) + 80.0 * k;
+      final phase = (scroll + seed) % (h + len);
+      final y1 = phase - len;
+      final y2 = phase;
+      final alpha = (0.10 + 0.35 * k) *
+          (1.0 - (y2 / h - 0.5).abs() * 0.6).clamp(0.0, 1.0);
+      streak.color = baseColor.withValues(alpha: alpha);
+      canvas.drawLine(Offset(laneL, y1), Offset(laneL, y2), streak);
+      canvas.drawLine(Offset(laneR, y1), Offset(laneR, y2), streak);
+    }
+
+    // A faint converging pair angled toward the player to sell the
+    // "tunneling forward" feel at high speed.
+    final conv = Paint()
+      ..strokeWidth = 1.2
+      ..color = baseColor.withValues(alpha: 0.18 * k);
+    canvas.drawLine(Offset(0, 0), Offset(w * 0.28, py), conv);
+    canvas.drawLine(Offset(w, 0), Offset(w * 0.72, py), conv);
   }
 
   // ---------- Trail ----------

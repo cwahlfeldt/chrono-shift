@@ -277,12 +277,7 @@ class _Hud extends StatelessWidget {
                       palette,
                     ),
                     _pill('BEST', '${state.highScore}', palette.gold, palette),
-                    _pill(
-                      'CHRONO',
-                      '${(state.meter * 100).round()}%',
-                      state.chronoActive ? palette.cyan : palette.white,
-                      palette,
-                    ),
+                    _chronoPill(state, palette),
                   ],
                 ),
                 const Spacer(),
@@ -325,6 +320,62 @@ class _Hud extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _chronoPill(GameState state, Palette palette) {
+    final valueColor = state.chronoActive ? palette.cyan : palette.white;
+    final refundPct = (state.meterRefundAmount * 100).round();
+    final showRefund =
+        state.meterRefundTimer > 0 && refundPct > 0 && !state.gameOver;
+    final refundAlpha = showRefund
+        ? (state.meterRefundTimer / GameState.meterRefundDisplaySeconds)
+            .clamp(0.0, 1.0)
+        : 0.0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xcc0a1230),
+        border: Border.all(
+          color: palette.cyan.withValues(alpha: 0.22),
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'CHRONO',
+            style: TextStyle(
+              color: palette.dim,
+              fontSize: 11,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${(state.meter * 100).round()}%',
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (showRefund) ...[
+            const SizedBox(width: 6),
+            Text(
+              '+$refundPct%',
+              style: TextStyle(
+                color: palette.cyan.withValues(alpha: refundAlpha),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

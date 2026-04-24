@@ -29,11 +29,17 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   Future<void> _loadBest() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _best = prefs.getInt('chrono_high_score') ?? 0);
+    final v = prefs.getInt('chrono_high_score') ?? 0;
+    if (mounted && v != _best) setState(() => _best = v);
   }
 
   @override
   Widget build(BuildContext context) {
+    // go_router keeps this screen in the tree under /play, so initState
+    // doesn't re-run when the player returns from a run. Re-read the
+    // stored best on each build — SharedPreferences is cached after the
+    // first hit, so it's effectively free.
+    _loadBest();
     final palette = context.watch<Palette>();
     final settings = context.watch<SettingsController>();
 
