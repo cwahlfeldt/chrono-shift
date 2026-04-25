@@ -5,10 +5,6 @@ import 'package:flutter/material.dart';
 /// near-black background.
 class Palette {
   Color get background => const Color(0xff05060c);
-  Color get backgroundMain => const Color(0xff05060c);
-  Color get backgroundPlaySession => const Color(0xff05060c);
-  Color get trackLine => const Color(0xff111827);
-
   Color get gold => const Color(0xffffc857);
   Color get cyan => const Color(0xff2ff3e0);
   Color get red => const Color(0xffff3b5c);

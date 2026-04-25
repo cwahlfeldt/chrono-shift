@@ -53,6 +53,10 @@ class GameTuning {
   /// Keyboard nudge acceleration in px/sec.
   static const double keyboardSteer = 1800.0;
 
+  /// Pointer must be held this long before Chrono-Shift engages —
+  /// distinguishes a "hold" from a "drag to steer".
+  static const double chronoHoldSeconds = 0.05;
+
   // ---------- Streak ----------
 
   /// Multiplier added per near-miss step.

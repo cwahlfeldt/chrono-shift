@@ -1,5 +1,5 @@
 name: chrono_shift
-description: Chrono-Shift — an ole fashioned arcade survival game.
+description: Chrono-Shift — an old-fashioned arcade survival game.
 
 # Prevent accidental publishing to pub.dev.
 publish_to: "none"
@@ -24,7 +24,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.14.0
-  test: ^1.24.3
 
 flutter:
   uses-material-design: true

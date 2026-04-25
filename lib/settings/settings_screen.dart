@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../game/high_score_store.dart';
 import '../style/palette.dart';
 import 'settings.dart';
 
@@ -63,8 +63,7 @@ class SettingsScreen extends StatelessWidget {
                 Icons.delete_outline,
                 false,
                 () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('chrono_high_score');
+                  await HighScoreStore().clear();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Best score reset.')),

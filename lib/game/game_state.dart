@@ -95,6 +95,17 @@ class GameState extends ChangeNotifier {
   int highScore = 0;
 
   // ---------------------- Lifecycle ----------------------
+
+  /// Seeds just enough state for [idleTick] / the menu backdrop:
+  /// stars exist, no run is in progress, no obstacles or trail.
+  void seedIdle() {
+    reset();
+    running = false;
+    gameOver = false;
+    obstacles.clear();
+    trail.clear();
+  }
+
   void reset() {
     running = true;
     gameOver = false;
@@ -573,14 +584,9 @@ class GameState extends ChangeNotifier {
   }
 
   void _tickStars(double realDt) {
-    // Stars scroll down in proportion to forward speed. Use distance
-    // as the phase so slow-mo (via timeScale) naturally slows the stars.
-    final base = distance * 0.2;
+    // Stars drift slowly on their own; the painter scrolls them by
+    // [distance] so slow-mo (via timeScale) naturally slows the field.
     for (final s in stars) {
-      // Precomputed per-star offset — advance by 0 here; render uses y
-      // directly. Scrolling is done at draw time for smooth motion.
-      // We still randomize x/z on wrap-around in the renderer.
-      // To keep stars from piling up we advance y over time slightly.
       s.y += (realDt * timeScale) * (0.015 * (0.2 + s.z));
       if (s.y > 1.0) {
         s.y -= 1.0;
@@ -588,9 +594,6 @@ class GameState extends ChangeNotifier {
         s.z = 0.2 + rng.nextDouble() * 0.8;
       }
     }
-    // base prevents "unused_local_variable"; it's also handy if we want
-    // to render starfield phase directly in the painter later.
-    if (base.isNaN) return;
   }
 
   // ---------------------- Helpers ----------------------

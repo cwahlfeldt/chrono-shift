@@ -25,13 +25,7 @@ class _IdleBackdropState extends State<IdleBackdrop>
   @override
   void initState() {
     super.initState();
-    _state = GameState();
-    // Seed stars without kicking off a real run.
-    _state.reset();
-    _state.running = false;
-    _state.gameOver = false;
-    _state.obstacles.clear();
-    _state.trail.clear();
+    _state = GameState()..seedIdle();
     _ticker = createTicker(_onTick)..start();
   }
 

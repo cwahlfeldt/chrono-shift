@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../audio/audio_controller.dart';
 import '../audio/sounds.dart';
+import '../game/high_score_store.dart';
 import '../game/idle_backdrop.dart';
 import '../settings/settings.dart';
 import '../style/palette.dart';
@@ -19,6 +19,7 @@ class MainMenuScreen extends StatefulWidget {
 }
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
+  final _store = HighScoreStore();
   int _best = 0;
   bool _leaving = false;
 
@@ -29,8 +30,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 
   Future<void> _loadBest() async {
-    final prefs = await SharedPreferences.getInstance();
-    final v = prefs.getInt('chrono_high_score') ?? 0;
+    final v = await _store.load();
     if (mounted && v != _best) setState(() => _best = v);
   }
 

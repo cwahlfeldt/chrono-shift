@@ -21,7 +21,6 @@ class Obstacle {
   final double halfW;
   final Color color;
   bool passed = false;
-  bool nearMissAwarded = false;
 
   Obstacle.wall({
     required this.worldY,

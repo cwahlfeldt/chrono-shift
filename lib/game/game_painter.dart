@@ -38,8 +38,6 @@ class GamePainter extends CustomPainter {
 
     _paintBackground(canvas, size);
     _paintStars(canvas, size);
-    // _paintTrackEdges(canvas, size);
-    // _paintCenterStripe(canvas, size);
     _paintObstacles(canvas, size);
     _paintTrail(canvas, size);
     _paintPlayer(canvas, size);
@@ -165,39 +163,6 @@ class GamePainter extends CustomPainter {
         );
       }
       canvas.drawRect(Rect.fromLTWH(sx, sy, r, r), head);
-    }
-  }
-
-  // ---------- Track ----------
-
-  void _paintTrackEdges(Canvas canvas, Size size) {
-    final m = GameTuning.trackMargin;
-    final p = Paint()
-      ..color = palette.cyan.withValues(alpha: 0.28)
-      ..strokeWidth = 2;
-    canvas.drawLine(Offset(m, 0), Offset(m, size.height), p);
-    canvas.drawLine(
-      Offset(size.width - m, 0),
-      Offset(size.width - m, size.height),
-      p,
-    );
-  }
-
-  void _paintCenterStripe(Canvas canvas, Size size) {
-    const spacing = 80.0;
-    const dashLen = 30.0;
-    final offset = state.distance % spacing;
-    final paint = Paint()
-      ..color = state.chronoActive
-          ? palette.cyan.withValues(alpha: 0.3)
-          : palette.cyan.withValues(alpha: 0.14)
-      ..strokeWidth = 2;
-    for (var y = -spacing + offset; y < size.height + spacing; y += spacing) {
-      canvas.drawLine(
-        Offset(size.width / 2, y),
-        Offset(size.width / 2, y + dashLen),
-        paint,
-      );
     }
   }
 

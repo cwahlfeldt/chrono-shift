@@ -39,9 +39,6 @@ class _PlayScreenState extends State<PlayScreen>
   // Input tracking.
   int? _activePointer;
   double _pointerHoldSeconds = 0.0;
-  // How long a pointer must be held (with little vertical motion) before
-  // Chrono-Shift engages. Matches the draft's ~50ms guard.
-  static const double _chronoHoldSeconds = 0.05;
 
   // Keyboard.
   final Set<LogicalKeyboardKey> _keysDown = {};
@@ -131,7 +128,8 @@ class _PlayScreenState extends State<PlayScreen>
     // _chronoHoldSeconds, activate. Taps/swipes that lift early never fire.
     if (_activePointer != null) {
       _pointerHoldSeconds += dt;
-      if (_pointerHoldSeconds > _chronoHoldSeconds && _state.meter > 0.02) {
+      if (_pointerHoldSeconds > GameTuning.chronoHoldSeconds &&
+          _state.meter > 0.02) {
         _state.setChronoActive(true);
       }
     }
@@ -379,14 +377,19 @@ class _Hud extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _pill(
-                      'SCORE',
-                      '${state.score.floor()}',
-                      palette.cyan,
-                      palette,
+                    _NeonPill(
+                      label: 'SCORE',
+                      value: '${state.score.floor()}',
+                      valueColor: palette.cyan,
+                      palette: palette,
                     ),
-                    _pill('BEST', '${state.highScore}', palette.gold, palette),
-                    _chronoPill(state, palette),
+                    _NeonPill(
+                      label: 'BEST',
+                      value: '${state.highScore}',
+                      valueColor: palette.gold,
+                      palette: palette,
+                    ),
+                    _ChronoPill(state: state, palette: palette),
                   ],
                 ),
                 const Spacer(),
@@ -433,63 +436,26 @@ class _Hud extends StatelessWidget {
     );
   }
 
-  Widget _chronoPill(GameState state, Palette palette) {
-    final valueColor = state.chronoActive ? palette.cyan : palette.white;
-    final refundPct = (state.meterRefundAmount * 100).round();
-    final showRefund =
-        state.meterRefundTimer > 0 && refundPct > 0 && !state.gameOver;
-    final refundAlpha = showRefund
-        ? (state.meterRefundTimer / GameTuning.meterRefundDisplaySeconds)
-            .clamp(0.0, 1.0)
-        : 0.0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xcc0a1230),
-        border: Border.all(
-          color: palette.cyan.withValues(alpha: 0.22),
-          width: 1,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'CHRONO',
-            style: TextStyle(
-              color: palette.dim,
-              fontSize: 11,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '${(state.meter * 100).round()}%',
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          if (showRefund) ...[
-            const SizedBox(width: 6),
-            Text(
-              '+$refundPct%',
-              style: TextStyle(
-                color: palette.cyan.withValues(alpha: refundAlpha),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+}
 
-  Widget _pill(String label, String value, Color valueColor, Palette palette) {
+/// Boxed label/value pill used for SCORE, BEST, and (with extras) CHRONO.
+class _NeonPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+  final Palette palette;
+  final List<Widget> trailing;
+
+  const _NeonPill({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    required this.palette,
+    this.trailing = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -521,8 +487,46 @@ class _Hud extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+          ...trailing,
         ],
       ),
+    );
+  }
+}
+
+class _ChronoPill extends StatelessWidget {
+  final GameState state;
+  final Palette palette;
+
+  const _ChronoPill({required this.state, required this.palette});
+
+  @override
+  Widget build(BuildContext context) {
+    final refundPct = (state.meterRefundAmount * 100).round();
+    final showRefund =
+        state.meterRefundTimer > 0 && refundPct > 0 && !state.gameOver;
+    final refundAlpha = showRefund
+        ? (state.meterRefundTimer / GameTuning.meterRefundDisplaySeconds)
+              .clamp(0.0, 1.0)
+        : 0.0;
+    return _NeonPill(
+      label: 'CHRONO',
+      value: '${(state.meter * 100).round()}%',
+      valueColor: state.chronoActive ? palette.cyan : palette.white,
+      palette: palette,
+      trailing: showRefund
+          ? [
+              const SizedBox(width: 6),
+              Text(
+                '+$refundPct%',
+                style: TextStyle(
+                  color: palette.cyan.withValues(alpha: refundAlpha),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ]
+          : const [],
     );
   }
 }

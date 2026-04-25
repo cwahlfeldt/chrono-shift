@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Chrono-Swipe** — a Flutter arcade survival game. One-finger play: drag to steer a light through a procedural obstacle corridor, hold to activate **Chrono-Shift** (slow-motion, drains a finite meter). See [GAME.md](GAME.md) for the full design doc — it is the source of truth for feel, scoring, and difficulty curve, and is worth re-reading before changing tuning numbers.
 
-Note: `pubspec.yaml` still uses the template's package name `basic` (so imports are `package:basic/...`). The app class is `ChronoSwipeApp`.
+Note: the package name is `chrono_shift`, so internal imports look like `package:chrono_shift/...`. The app class is `ChronoSwipeApp`.
 
 ## Commands
 
@@ -74,4 +74,4 @@ Only [test/smoke_test.dart](test/smoke_test.dart) exists — it pumps `ChronoSwi
 
 ## Repo state caveats
 
-The working tree has many deletions of old template screens (`level_selection/`, `play_session/`, `player_progress/`, `win_game/`, etc.) that have been replaced by `lib/game/` but not yet committed. Only one commit exists (`init`). If you see references to the old paths in generated platform files (`macos/Flutter/GeneratedPluginRegistrant.swift`, `linux/flutter/generated_plugins.cmake`, etc.), those are mid-migration — regenerate via `flutter pub get` / platform rebuilds rather than hand-editing.
+If you see references to old template paths (`level_selection/`, `play_session/`, `player_progress/`, `win_game/`, etc.) in generated platform files (`macos/Flutter/GeneratedPluginRegistrant.swift`, `linux/flutter/generated_plugins.cmake`, etc.), regenerate via `flutter pub get` / platform rebuilds rather than hand-editing.

@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Simple local-storage backed high-score store for Chrono-Swipe.
+/// Local-storage backed high-score store. Single source of truth for the
+/// `chrono_high_score` key — every reader/writer goes through here.
 class HighScoreStore {
   static const _key = 'chrono_high_score';
 
@@ -12,5 +13,10 @@ class HighScoreStore {
   Future<void> save(int score) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_key, score);
+  }
+
+  Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
   }
 }
