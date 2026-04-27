@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'game_tuning.dart';
 import 'models.dart';
+import 'obstacle_blocks.dart';
 
 /// State of a single Chrono-Swipe run, top-down 2D. The world has a
 /// forward "world-Y" axis that grows as the player advances. Obstacles
@@ -292,113 +293,52 @@ class GameState extends ChangeNotifier {
   double _difficulty() => difficultyAt(distance);
 
   void _spawnObstacles() {
-    // Keep spawning until there's enough runway ahead of the player.
     var guard = 0;
     while (nextObstacleAt < distance + viewH * 1.8 && guard++ < 20) {
-      final wy = nextObstacleAt;
-      _spawnOne(wy);
-      final d = _difficulty();
-      final spacing =
-          _rand(340.0 - d * 90.0, 520.0 - d * 140.0).clamp(200.0, 560.0);
-      nextObstacleAt = wy + spacing;
+      final block = _pickBlock(_difficulty());
+      _emitBlock(block, nextObstacleAt);
+      final blockSpan = block.rows.length * block.rowSpacing;
+      final breather = _rand(260.0, 360.0);
+      nextObstacleAt += blockSpan + breather;
     }
   }
 
-  void _spawnOne(double worldY) {
-    final d = _difficulty();
-    final minGap = 110.0 - d * 50.0;
-    final maxGap = 190.0 - d * 60.0;
-    final gap = max(70.0, _rand(minGap, maxGap));
-    final usable = viewW - GameTuning.trackMargin * 2;
+  ObstacleBlock _pickBlock(double d) {
+    const window = 0.25;
+    final pool = <ObstacleBlock>[];
+    for (final b in kBlockLibrary) {
+      if ((b.difficulty - d).abs() <= window) pool.add(b);
+    }
+    if (pool.isNotEmpty) return pool[rng.nextInt(pool.length)];
+    // Fallback: closest by difficulty.
+    return kBlockLibrary.reduce(
+      (a, b) => (a.difficulty - d).abs() < (b.difficulty - d).abs() ? a : b,
+    );
+  }
 
-    // Type selection, following the draft's vocabulary unlock curve.
-    final types = <_Kind>[
-      _Kind.wall,
-      _Kind.wall,
-      _Kind.slab,
-      if (d >= 0.35) _Kind.comb,
-      _Kind.diag,
-    ];
-    // Very early on, only walls.
-    final effective = d < 0.15 ? <_Kind>[_Kind.wall] : types;
-    final kind = effective[rng.nextInt(effective.length)];
-
-    final thickness = _rand(22.0, 36.0);
-    final color = _randomObstacleColor();
-
+  void _emitBlock(ObstacleBlock b, double startWorldY) {
     final m = GameTuning.trackMargin;
-    switch (kind) {
-      case _Kind.wall:
-        final gapX = _rand(m + gap / 2, viewW - m - gap / 2);
-        obstacles.add(Obstacle.wall(
-          worldY: worldY,
-          thickness: thickness,
-          gapX: gapX,
-          gap: gap,
-          color: color,
-        ));
-        break;
-      case _Kind.slab:
-        // Two walls close together, offset gaps.
-        final gx1 = _rand(
-          m + gap / 2 + 40,
-          viewW - m - gap / 2 - 40,
-        );
-        obstacles.add(Obstacle.wall(
-          worldY: worldY,
-          thickness: thickness,
-          gapX: gx1,
-          gap: gap,
-          color: color,
-        ));
-        final gx2 = _rand(m + gap / 2, viewW - m - gap / 2);
-        obstacles.add(Obstacle.wall(
-          worldY: worldY + _rand(180.0, 260.0),
-          thickness: thickness,
-          gapX: gx2,
-          gap: gap * 1.05,
-          color: color,
-        ));
-        break;
-      case _Kind.comb:
-        final count = 3 + rng.nextInt(3); // 3..5
-        final laneW = usable / count;
-        final openIdx = rng.nextInt(count);
-        for (var i = 0; i < count; i++) {
-          if (i == openIdx) continue;
-          final x = m + laneW * i + laneW / 2;
-          obstacles.add(Obstacle.pillar(
-            worldY: worldY,
-            thickness: thickness,
-            x: x,
-            halfW: laneW / 2 - 14,
-            color: color,
-          ));
-        }
-        break;
-      case _Kind.diag:
-        final gx1 = _rand(m + gap / 2, viewW - m - gap / 2);
-        final sign = rng.nextBool() ? -1.0 : 1.0;
-        final raw = gx1 + sign * _rand(120.0, 220.0);
-        final gx2 = raw.clamp(
-          m + gap / 2,
-          viewW - m - gap / 2,
-        );
-        obstacles.add(Obstacle.wall(
-          worldY: worldY,
-          thickness: thickness,
-          gapX: gx1,
-          gap: gap,
-          color: color,
-        ));
-        obstacles.add(Obstacle.wall(
-          worldY: worldY + _rand(140.0, 200.0),
-          thickness: thickness,
-          gapX: gx2,
-          gap: gap * 0.95,
-          color: color,
-        ));
-        break;
+    final usable = viewW - m * 2;
+    final laneW = usable / b.lanes;
+    final color = _randomObstacleColor();
+    final cell = b.cellHeight;
+    var wy = startWorldY;
+    for (final row in b.rows) {
+      switch (row) {
+        case GapRow():
+          wy += b.rowSpacing;
+        case Row(:final lanes):
+          for (final lane in lanes) {
+            obstacles.add(Obstacle.pillar(
+              worldY: wy,
+              thickness: cell,
+              x: m + laneW * lane + laneW / 2,
+              halfW: laneW / 2,
+              color: color,
+            ));
+          }
+          wy += cell;
+      }
     }
   }
 
@@ -628,4 +568,3 @@ class GameState extends ChangeNotifier {
   }
 }
 
-enum _Kind { wall, slab, comb, diag }
