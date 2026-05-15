@@ -4,7 +4,7 @@
 /// never owns, the numbers.
 ///
 /// Categories, in order: layout, speed, chrono meter, steering, streak,
-/// near-miss thresholds, meter refund, scoring, HUD display.
+/// near-miss thresholds, scoring, HUD display.
 class GameTuning {
   GameTuning._();
 
@@ -22,24 +22,24 @@ class GameTuning {
   // ---------- Speed ----------
 
   /// Forward speed in px/sec at time-scale 1.
-  static const double baseSpeed = 520.0;
+  static const double baseSpeed = 380.0;
 
   /// Additional px/s per px travelled, capped by [speedDistBoostCap].
   static const double speedDistBoost = 0.02;
 
   /// Maximum bonus forward speed from the distance ramp.
-  static const double speedDistBoostCap = 380.0;
+  static const double speedDistBoostCap = 400.0;
 
   // ---------- Chrono meter ----------
 
   /// Time-scale during Chrono-Shift. The sim multiplies dt by this.
-  static const double slowFactor = 0.2;
+  static const double slowFactor = 0.15;
 
   /// Meter consumption rate while Chrono-Shift is active (per real-sec).
-  static const double meterDrainPerSec = 0.55;
-
-  /// Meter refill rate when not chrono-shifting (per real-sec).
-  static const double meterFillPerSec = 0.32;
+  /// The meter refills to 1.0 instantly on each fresh activation, so this
+  /// rate effectively defines the duration of a single slow-mo burst
+  /// (1 / drain ≈ burst seconds).
+  static const double meterDrainPerSec = 0.32;
 
   // ---------- Steering ----------
 
@@ -79,14 +79,6 @@ class GameTuning {
   static const double pillarNearMissTier2 = 14.0;
   static const double pillarNearMissTier1 = 26.0;
 
-  // ---------- Meter refund per tier ----------
-
-  /// Fraction of the 0..1 meter bar returned per tier. Tight shaves
-  /// give back enough slow-mo to make aggressive play self-sustaining.
-  static const double meterRefundTier3 = 0.18;
-  static const double meterRefundTier2 = 0.10;
-  static const double meterRefundTier1 = 0.05;
-
   // ---------- Scoring ----------
 
   /// Score per forward px at the baseline multiplier.
@@ -95,18 +87,12 @@ class GameTuning {
   /// In-tick multiplier applied to score while chrono-shifting.
   static const double chronoScoreScale = 2.2;
 
-  // ---------- HUD ----------
-
-  /// How long the transient "+N%" chrono-refund indicator stays on the
-  /// HUD before fading.
-  static const double meterRefundDisplaySeconds = 0.9;
-
   // ---------- Intro ----------
 
   /// When true, PlayScreen runs a slide-up + 3-2-1 countdown before
   /// the game begins. Turn off to jump straight into a run for faster
   /// iteration on gameplay.
-  static const bool introEnabled = true;
+  static const bool introEnabled = false;
 
   /// Seconds the player takes to slide from off-screen-bottom to its
   /// resting [GameTuning.playerBase].

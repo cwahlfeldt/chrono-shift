@@ -2,7 +2,7 @@
 
 ## Overview
 
-Chrono-Swipe is a fast-paced, one-more-run arcade survival game about threading impossibly tight gaps at high speed — and bending time when you can't. You pilot a single point of light rocketing forward through an endless corridor of neon obstacles. The longer you survive, the faster you go, and the tighter the gaps become. Your only lifeline is the Chrono-Shift: a finite pool of slow-motion that you can dip into at any moment to buy yourself the fractions of a second you need to make it through.
+Chrono-Swipe is a fast-paced, one-more-run arcade survival game about threading impossibly tight gaps at high speed — and bending time when you can't. You pilot a single point of light rocketing forward through an endless corridor of neon obstacles. The longer you survive, the faster you go, and the tighter the gaps become. Your only lifeline is the Chrono-Shift: a short burst of slow-motion you can fire off any time you press in, giving you the fractions of a second you need to make it through.
 
 The game is designed for short, intense runs — a minute or two at a time — where every session either ends in a clean new personal best or a spectacular crash.
 
@@ -16,15 +16,15 @@ You are moving too fast to react. Your brain and fingers cannot possibly keep up
 - **Hold** to activate Chrono-Shift, which slows the world to roughly 20% speed. Release to snap back to full speed.
 - Survive as long as you can. There is no finish line — only a high score.
 
-## The Chrono Meter
+## The Chrono Burst
 
-Chrono-Shift is not free. A meter (shown as a percentage) drains while you're slowed and refills while you're not. At zero, time resumes at full speed whether you're ready or not.
+Every press of Chrono-Shift fires a fresh, fixed-length burst of slow-motion. Each burst is the same length (a little over three seconds), regardless of how recently you used the last one. There is no global reservoir to manage and no waiting around for a meter to refill — let go, press in again, and you get the full burst back. A meter on the HUD ticks down only while you're actively holding, showing how much of the current burst is left before time snaps back to full speed.
 
-The meter reshapes every decision in the game:
+The burst reshapes every decision in the game:
 
-- **Drains faster than it refills.** You cannot simply hold slow-motion the entire run.
+- **Always available, never infinite.** You can re-enter slow-mo as often as you like, but each individual burst runs out on its own short clock — overstay it and you snap back to full speed mid-obstacle.
 - **Runs score faster while slowed.** Points come in roughly 2x faster during Chrono-Shift, rewarding players who use it for offense rather than pure survival.
-- **Forces commitment.** When you dip into the meter on one obstacle, you may not have it for the next one. Managing this reservoir over the course of a run is the central puzzle.
+- **Forces good timing.** Because each burst is short, the puzzle is *when* you press in: too early and the burst expires before the danger; too late and you've already crashed.
 
 ## Obstacles
 
@@ -67,4 +67,4 @@ The visual language is deliberately minimal: a dark field, a handful of accent c
 
 ## Why It Works
 
-The design hinges on a single, clean tension: the thing that saves you is also the thing that scores you. Chrono-Shift is simultaneously your safety net and your point multiplier, so the player who hoards it plays safe and scores poorly, while the player who burns it aggressively lives on a thinner edge but climbs the leaderboard faster. Every run becomes a negotiation between those two instincts, and the short session length — often under two minutes — makes it easy to commit to "one more try."
+The design hinges on a single, clean tension: the thing that saves you is also the thing that scores you. Chrono-Shift is simultaneously your safety net and your point multiplier — and because each press gives the same short burst, the question is never "do I have enough?" but "is *now* the right moment?" Press too eagerly and the burst evaporates before the gap arrives; press too late and you're already wreckage. Every run becomes a string of small commitments, and the short session length — often under two minutes — makes it easy to commit to "one more try."

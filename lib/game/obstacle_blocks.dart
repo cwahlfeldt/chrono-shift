@@ -49,7 +49,7 @@ class ObstacleBlock {
     required this.name,
     required this.difficulty,
     required this.rows,
-    this.lanes = 12,
+    this.lanes = 13,
     this.cellHeight = 28.0,
     this.rowSpacing = 90.0,
   });
@@ -58,75 +58,79 @@ class ObstacleBlock {
 // 12-lane grid:  0  1  2  3  4  5  6  7  8  9 10 11
 //
 // Visual key in comments:  #  = filled cell      .  = open
+const Row wall = Row([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+const Row center = Row([0, 1, 2, 3, 4, 8, 9, 10, 11, 12]);
+const Row left = Row([0, 1, 2, 3, 4, 5, 6, 10, 11, 12]);
+const Row right = Row([0, 1, 5, 6, 7, 8, 9, 10, 11, 12]);
 
-const ObstacleBlock kEasyWall = ObstacleBlock(
+const ObstacleBlock centerGap = ObstacleBlock(
   name: 'easy_wall',
   difficulty: 0.1,
-  rows: [
-    // # # # # . . . . # # # #   — gap at lanes 4..7
-    Row([0, 2, 5, 11]),
-  ],
+  rows: [center],
 );
 
-const ObstacleBlock kEasyWall2 = ObstacleBlock(
-  name: 'easy_wall_2',
+const ObstacleBlock rightGap = ObstacleBlock(
+  name: 'easy_wall_right',
+  difficulty: 0.1,
+  rows: [right],
+);
+
+const ObstacleBlock leftGap = ObstacleBlock(
+  name: 'easy_wall_left',
+  difficulty: 0.1,
+  rows: [left],
+);
+
+const ObstacleBlock checkered = ObstacleBlock(
+  name: 'checkered',
   difficulty: 0.2,
   rows: [
-    // # # # # # # # . . . # #   — gap right
-    Row([0, 1, 2, 3, 4, 5, 6, 10, 11]),
-    GapRow(),
-    GapRow(),
-
-    // # # . . . # # # # # # #   — gap left
-    Row([0, 1, 5, 6, 7, 8, 9, 10, 11]),
+    Row([2, 3, 6, 7, 10, 11, 12]),
   ],
 );
 
-const ObstacleBlock kMidComb = ObstacleBlock(
-  name: 'mid_comb',
-  difficulty: 0.5,
+const ObstacleBlock crisscross = ObstacleBlock(
+  name: 'checkered',
+  difficulty: 0.2,
   rows: [
-    // # # # # # . . # # # # #
-    Row([0, 1, 3, 7, 9, 10, 11]),
+    Row([0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 11, 12]),
     GapRow(),
-    GapRow(),
-
-    // # # # # # # # # # . . #
-    Row([1, 11]),
-
-    GapRow(),
-    GapRow(),
-
-    // Wide centered gap to recover.
-    // # # # # . . . . # # # #
-    Row([0, 1, 2, 3, 8, 9, 10, 11]),
+    Row([0, 1, 0, 0, 0, 5, 6, 7, 8, 9, 10, 11, 12]),
   ],
 );
 
-const ObstacleBlock kHardSlalom = ObstacleBlock(
-  name: 'hard_slalom',
-  difficulty: 1.0,
+const ObstacleBlock narrowing = ObstacleBlock(
+  name: 'narrowing',
+  difficulty: 0.2,
   rows: [
-    // Tight gap at lane 3.
-    // # # # . # # # # # # # #
-    Row([0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11]),
+    Row([0, 1, 2, 3, 4, 0, 0, 0, 8, 9, 10, 11, 12]),
     GapRow(),
-    // Tight gap at lane 9 — slalom across.
-    // # # # # # # # # # . # #
-    Row([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11]),
+    Row([0, 1, 2, 3, 0, 0, 0, 0, 0, 9, 10, 11, 12]),
     GapRow(),
-    // Single-lane gap at 6.
-    // # # # # # # . # # # # #
-    Row([0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11]),
-    // Single-lane gap at 7 (right above) — forces a quick step.
-    // # # # # # # # . # # # #
-    Row([0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11]),
+    Row([0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 10, 11, 12]),
+    GapRow(),
+    Row([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 12]),
+    GapRow(),
+    Row([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12]),
+    GapRow(),
+    Row([6]),
+    GapRow(),
+    Row([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12]),
+    GapRow(),
+    Row([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 12]),
+    GapRow(),
+    Row([0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 10, 11, 12]),
+    GapRow(),
+    Row([0, 1, 2, 3, 0, 0, 0, 0, 0, 9, 10, 11, 12]),
+    GapRow(),
+    Row([0, 1, 2, 3, 4, 0, 0, 0, 8, 9, 10, 11, 12]),
   ],
 );
 
 const List<ObstacleBlock> kBlockLibrary = [
-  kEasyWall,
-  kEasyWall2,
-  kMidComb,
-  kHardSlalom,
+  centerGap,
+  leftGap,
+  rightGap,
+  narrowing,
+  checkered,
 ];

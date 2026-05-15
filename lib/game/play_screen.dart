@@ -128,8 +128,7 @@ class _PlayScreenState extends State<PlayScreen>
     // _chronoHoldSeconds, activate. Taps/swipes that lift early never fire.
     if (_activePointer != null) {
       _pointerHoldSeconds += dt;
-      if (_pointerHoldSeconds > GameTuning.chronoHoldSeconds &&
-          _state.meter > 0.02) {
+      if (_pointerHoldSeconds > GameTuning.chronoHoldSeconds) {
         _state.setChronoActive(true);
       }
     }
@@ -438,20 +437,18 @@ class _Hud extends StatelessWidget {
 
 }
 
-/// Boxed label/value pill used for SCORE, BEST, and (with extras) CHRONO.
+/// Boxed label/value pill used for SCORE, BEST, and CHRONO.
 class _NeonPill extends StatelessWidget {
   final String label;
   final String value;
   final Color valueColor;
   final Palette palette;
-  final List<Widget> trailing;
 
   const _NeonPill({
     required this.label,
     required this.value,
     required this.valueColor,
     required this.palette,
-    this.trailing = const [],
   });
 
   @override
@@ -487,7 +484,6 @@ class _NeonPill extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          ...trailing,
         ],
       ),
     );
@@ -502,31 +498,11 @@ class _ChronoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final refundPct = (state.meterRefundAmount * 100).round();
-    final showRefund =
-        state.meterRefundTimer > 0 && refundPct > 0 && !state.gameOver;
-    final refundAlpha = showRefund
-        ? (state.meterRefundTimer / GameTuning.meterRefundDisplaySeconds)
-              .clamp(0.0, 1.0)
-        : 0.0;
     return _NeonPill(
       label: 'CHRONO',
       value: '${(state.meter * 100).round()}%',
       valueColor: state.chronoActive ? palette.cyan : palette.white,
       palette: palette,
-      trailing: showRefund
-          ? [
-              const SizedBox(width: 6),
-              Text(
-                '+$refundPct%',
-                style: TextStyle(
-                  color: palette.cyan.withValues(alpha: refundAlpha),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ]
-          : const [],
     );
   }
 }

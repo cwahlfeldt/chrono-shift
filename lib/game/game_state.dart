@@ -42,10 +42,10 @@ class GameState extends ChangeNotifier {
   bool running = false;
   bool gameOver = false;
 
-  double realTime = 0.0;    // real (wall) seconds since run started
-  double gameTime = 0.0;    // dilated seconds (advances slower during slow-mo)
-  double timeScale = 1.0;   // smoothed toward 1.0 or slowFactor
-  double meter = 1.0;       // 0..1
+  double realTime = 0.0; // real (wall) seconds since run started
+  double gameTime = 0.0; // dilated seconds (advances slower during slow-mo)
+  double timeScale = 1.0; // smoothed toward 1.0 or slowFactor
+  double meter = 1.0; // 0..1
   bool chronoActive = false;
 
   /// Blend for star trails. Eases toward 1.0 normally and 0.0 while
@@ -59,8 +59,8 @@ class GameState extends ChangeNotifier {
   /// run begins; eases toward 1 via [tick].
   double introSpeedRamp = 1.0;
 
-  double distance = 0.0;    // world-Y travelled (pixels)
-  double playerX = 0.0;     // screen x
+  double distance = 0.0; // world-Y travelled (pixels)
+  double playerX = 0.0; // screen x
   double playerXTarget = 0.0;
 
   /// Optional override for the player's screen-y. When null the
@@ -76,10 +76,6 @@ class GameState extends ChangeNotifier {
 
   String? nearMissFlash;
   double _nearMissFlashTimer = 0.0;
-
-  // Last chrono refund, for a transient HUD indicator.
-  double meterRefundAmount = 0.0;
-  double meterRefundTimer = 0.0;
 
   // Crash overlays.
   double shake = 0.0;
@@ -128,8 +124,6 @@ class GameState extends ChangeNotifier {
     _streakTimer = 0.0;
     nearMissFlash = null;
     _nearMissFlashTimer = 0.0;
-    meterRefundAmount = 0.0;
-    meterRefundTimer = 0.0;
     shake = 0.0;
     flashOpacity = 0.0;
     obstacles.clear();
@@ -143,8 +137,13 @@ class GameState extends ChangeNotifier {
       // screen share the same visual frame at the route transition.
       final seeded = Random(1999);
       for (var i = 0; i < 80; i++) {
-        stars.add(Star(seeded.nextDouble(), seeded.nextDouble(),
-            0.2 + seeded.nextDouble() * 0.8));
+        stars.add(
+          Star(
+            seeded.nextDouble(),
+            seeded.nextDouble(),
+            0.2 + seeded.nextDouble() * 0.8,
+          ),
+        );
       }
     }
 
@@ -164,12 +163,17 @@ class GameState extends ChangeNotifier {
   /// Keyboard nudge (direction = -1 or +1).
   void nudgeSteer(double direction, double realDt) {
     playerXTarget = _clampPlayerX(
-        playerXTarget + direction * GameTuning.keyboardSteer * realDt);
+      playerXTarget + direction * GameTuning.keyboardSteer * realDt,
+    );
   }
 
   void setChronoActive(bool active) {
     if (gameOver || !running) return;
-    if (active && meter <= 0.02) return;
+    if (active && !chronoActive) {
+      // Each fresh activation refills the per-swipe burst budget so the
+      // duration is the same every time, regardless of past use.
+      meter = 1.0;
+    }
     chronoActive = active;
   }
 
@@ -204,15 +208,19 @@ class GameState extends ChangeNotifier {
     if (!gameOver) {
       // Forward speed. Scaled by introSpeedRamp so a run doesn't start
       // with a jarring instant jump from idle creep.
-      final fwd = (GameTuning.baseSpeed +
-              min(GameTuning.speedDistBoostCap,
-                  distance * GameTuning.speedDistBoost)) *
+      final fwd =
+          (GameTuning.baseSpeed +
+              min(
+                GameTuning.speedDistBoostCap,
+                distance * GameTuning.speedDistBoost,
+              )) *
           introSpeedRamp;
       distance += fwd * dt;
 
       // Steering — real-time follow so slow-mo doesn't make steering mushy.
-      final k =
-          chronoActive ? GameTuning.steerFollowChrono : GameTuning.steerFollow;
+      final k = chronoActive
+          ? GameTuning.steerFollowChrono
+          : GameTuning.steerFollow;
       playerX += (playerXTarget - playerX) * min(1.0, realDt * k);
       playerX = _clampPlayerX(playerX);
 
@@ -241,11 +249,6 @@ class GameState extends ChangeNotifier {
       if (_nearMissFlashTimer <= 0) nearMissFlash = null;
     }
 
-    if (meterRefundTimer > 0) {
-      meterRefundTimer -= realDt;
-      if (meterRefundTimer <= 0) meterRefundAmount = 0.0;
-    }
-
     notifyListeners();
   }
 
@@ -264,11 +267,11 @@ class GameState extends ChangeNotifier {
 
   // ---------------------- Sub-steps ----------------------
   void _updateMeter(double realDt) {
+    // Per-swipe burst: drains only while held; does not passively refill.
+    // A fresh refill happens at the moment of activation in setChronoActive.
     if (chronoActive && meter > 0) {
       meter = max(0.0, meter - GameTuning.meterDrainPerSec * realDt);
       if (meter <= 0) chronoActive = false;
-    } else {
-      meter = min(1.0, meter + GameTuning.meterFillPerSec * realDt);
     }
   }
 
@@ -279,16 +282,14 @@ class GameState extends ChangeNotifier {
     // Star trails drain quickly when chrono engages so the recede
     // feels deliberate, but still soft — not a hard cut.
     final trailTarget = chronoActive ? 0.0 : 1.0;
-    starTrailBlend +=
-        (trailTarget - starTrailBlend) * min(1.0, realDt * 6.0);
+    starTrailBlend += (trailTarget - starTrailBlend) * min(1.0, realDt * 6.0);
   }
 
   // ---------------------- Obstacles ----------------------
   /// Difficulty curve in 0..1.6 as a function of forward distance.
   /// Pure; extracted as a static so tests can pin its shape without
   /// spinning up a full simulation.
-  static double difficultyAt(double distance) =>
-      min(1.6, distance / 12000.0);
+  static double difficultyAt(double distance) => min(1.6, distance / 12000.0);
 
   double _difficulty() => difficultyAt(distance);
 
@@ -303,17 +304,23 @@ class GameState extends ChangeNotifier {
     }
   }
 
-  ObstacleBlock _pickBlock(double d) {
-    const window = 0.25;
-    final pool = <ObstacleBlock>[];
-    for (final b in kBlockLibrary) {
-      if ((b.difficulty - d).abs() <= window) pool.add(b);
+  ObstacleBlock _pickBlock(double currentDifficulty) {
+    // 1. Create a pool of all blocks that the player has "unlocked"
+    // (Everything with a difficulty less than or equal to current + a small buffer).
+    final pool = kBlockLibrary
+        .where((b) => b.difficulty <= currentDifficulty + 0.1)
+        .toList();
+
+    // 2. If the pool is empty (e.g., at the very start of the game),
+    // find the single easiest block available instead of using a complex reduce.
+    if (pool.isEmpty) {
+      return kBlockLibrary.reduce(
+        (a, b) => a.difficulty < b.difficulty ? a : b,
+      );
     }
-    if (pool.isNotEmpty) return pool[rng.nextInt(pool.length)];
-    // Fallback: closest by difficulty.
-    return kBlockLibrary.reduce(
-      (a, b) => (a.difficulty - d).abs() < (b.difficulty - d).abs() ? a : b,
-    );
+
+    // 3. Return a random selection from the expanded pool.
+    return pool[rng.nextInt(pool.length)];
   }
 
   void _emitBlock(ObstacleBlock b, double startWorldY) {
@@ -329,13 +336,15 @@ class GameState extends ChangeNotifier {
           wy += b.rowSpacing;
         case Row(:final lanes):
           for (final lane in lanes) {
-            obstacles.add(Obstacle.pillar(
-              worldY: wy,
-              thickness: cell,
-              x: m + laneW * lane + laneW / 2,
-              halfW: laneW / 2,
-              color: color,
-            ));
+            obstacles.add(
+              Obstacle.pillar(
+                worldY: wy,
+                thickness: cell,
+                x: m + laneW * lane + laneW / 2,
+                halfW: laneW / 2,
+                color: color,
+              ),
+            );
           }
           wy += cell;
       }
@@ -376,8 +385,10 @@ class GameState extends ChangeNotifier {
       if (closest < GameTuning.nearMissTier1) return 1;
       return 0;
     } else {
-      final closest =
-          min((px - (o.x - o.halfW)).abs(), (px - (o.x + o.halfW)).abs());
+      final closest = min(
+        (px - (o.x - o.halfW)).abs(),
+        (px - (o.x + o.halfW)).abs(),
+      );
       if (closest < GameTuning.pillarNearMissTier2) return 2;
       if (closest < GameTuning.pillarNearMissTier1) return 1;
       return 0;
@@ -392,19 +403,6 @@ class GameState extends ChangeNotifier {
     streakSteps = min(GameTuning.maxStreakSteps, streakSteps + 1);
     streakMultiplier = 1.0 + streakSteps * GameTuning.streakPerMiss;
     _streakTimer = GameTuning.streakDecaySeconds;
-
-    final refund = tier == 3
-        ? GameTuning.meterRefundTier3
-        : tier == 2
-            ? GameTuning.meterRefundTier2
-            : GameTuning.meterRefundTier1;
-    final before = meter;
-    meter = (meter + refund).clamp(0.0, 1.0);
-    final applied = meter - before;
-    if (applied > 0) {
-      meterRefundAmount = applied;
-      meterRefundTimer = GameTuning.meterRefundDisplaySeconds;
-    }
 
     nearMissFlash = tier == 3 ? 'PERFECT' : 'NEAR MISS';
     _nearMissFlashTimer = 0.5;
@@ -469,16 +467,18 @@ class GameState extends ChangeNotifier {
       final c = i % 3 == 0
           ? const Color(0xffff4d6d)
           : (i % 3 == 1 ? const Color(0xffffd166) : const Color(0xff7cf7ff));
-      particles.add(Particle(
-        x: cx,
-        y: cy,
-        vx: cos(ang) * sp,
-        vy: sin(ang) * sp,
-        life: _rand(0.5, 1.1),
-        maxLife: 1.1,
-        radius: _rand(1.5, 3.5),
-        color: c,
-      ));
+      particles.add(
+        Particle(
+          x: cx,
+          y: cy,
+          vx: cos(ang) * sp,
+          vy: sin(ang) * sp,
+          life: _rand(0.5, 1.1),
+          maxLife: 1.1,
+          radius: _rand(1.5, 3.5),
+          color: c,
+        ),
+      );
     }
 
     if (score > highScore) highScore = score.floor();
@@ -492,22 +492,26 @@ class GameState extends ChangeNotifier {
     for (var i = 0; i < n; i++) {
       final ang = rng.nextDouble() * pi * 2;
       final sp = _rand(80.0, 260.0);
-      particles.add(Particle(
-        x: x,
-        y: y,
-        vx: cos(ang) * sp,
-        vy: sin(ang) * sp - 60,
-        life: _rand(0.35, 0.7),
-        maxLife: 0.7,
-        radius: _rand(1.5, 3.0),
-        color: color,
-      ));
+      particles.add(
+        Particle(
+          x: x,
+          y: y,
+          vx: cos(ang) * sp,
+          vy: sin(ang) * sp - 60,
+          life: _rand(0.35, 0.7),
+          maxLife: 0.7,
+          radius: _rand(1.5, 3.0),
+          color: color,
+        ),
+      );
     }
   }
 
   // ---------------------- Ambient ----------------------
   void _updateTrail() {
-    trail.add(TrailSample(playerX, viewH - GameTuning.playerBase, chronoActive));
+    trail.add(
+      TrailSample(playerX, viewH - GameTuning.playerBase, chronoActive),
+    );
     if (trail.length > _maxTrail) trail.removeAt(0);
   }
 
@@ -547,17 +551,29 @@ class GameState extends ChangeNotifier {
     final m = l - c / 2;
     double r = 0, g = 0, b = 0;
     if (h < 60) {
-      r = c; g = x; b = 0;
+      r = c;
+      g = x;
+      b = 0;
     } else if (h < 120) {
-      r = x; g = c; b = 0;
+      r = x;
+      g = c;
+      b = 0;
     } else if (h < 180) {
-      r = 0; g = c; b = x;
+      r = 0;
+      g = c;
+      b = x;
     } else if (h < 240) {
-      r = 0; g = x; b = c;
+      r = 0;
+      g = x;
+      b = c;
     } else if (h < 300) {
-      r = x; g = 0; b = c;
+      r = x;
+      g = 0;
+      b = c;
     } else {
-      r = c; g = 0; b = x;
+      r = c;
+      g = 0;
+      b = x;
     }
     return Color.fromARGB(
       255,
@@ -567,4 +583,3 @@ class GameState extends ChangeNotifier {
     );
   }
 }
-

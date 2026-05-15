@@ -48,7 +48,7 @@ void main() {
     });
   });
 
-  group('meter drain / fill', () {
+  group('per-swipe burst meter', () {
     // All meter tests silence the obstacle spawner so the run doesn't
     // end before the assertion window.
     void silenceSpawner(GameState s) {
@@ -56,26 +56,31 @@ void main() {
       s.nextObstacleAt = s.distance + 1e9;
     }
 
-    test('fills from 0 to 1 in roughly 1/meterFillPerSec seconds', () {
+    test('does not passively refill while chrono inactive', () {
       final s = _freshState();
       silenceSpawner(s);
-      s.meter = 0.0;
-      // Simulate 4s of ticks at 60Hz, chrono inactive.
+      s.meter = 0.3;
       const dt = 1 / 60;
       for (var i = 0; i < 60 * 4; i++) {
         s.tick(dt);
         if (s.gameOver) break;
       }
-      // Expected refill = 4 * fillRate, clamped to 1.
-      final expected = (4 * GameTuning.meterFillPerSec).clamp(0.0, 1.0);
-      expect(s.meter, closeTo(expected, 0.02));
+      expect(s.meter, 0.3);
       expect(s.gameOver, isFalse);
+    });
+
+    test('fresh activation refills meter to 1.0', () {
+      final s = _freshState();
+      silenceSpawner(s);
+      s.meter = 0.1;
+      s.setChronoActive(true);
+      expect(s.meter, 1.0);
+      expect(s.chronoActive, isTrue);
     });
 
     test('drains while chrono active', () {
       final s = _freshState();
       silenceSpawner(s);
-      s.meter = 1.0;
       s.setChronoActive(true);
       const dt = 1 / 60;
       // 1 second of drain.
@@ -90,9 +95,8 @@ void main() {
     test('auto-disables chrono when meter empties', () {
       final s = _freshState();
       silenceSpawner(s);
-      s.meter = 0.05;
       s.setChronoActive(true);
-      // Run long enough that drain > 0.05.
+      s.meter = 0.05;
       const dt = 1 / 60;
       for (var i = 0; i < 60 * 2; i++) {
         s.tick(dt);
@@ -102,10 +106,22 @@ void main() {
       expect(s.meter, 0.0);
     });
 
-    test('drain and fill are not in equilibrium (drain > fill)', () {
-      // Sanity on the tuning: pure drain must outpace pure fill, else
-      // chrono would be infinite.
-      expect(GameTuning.meterDrainPerSec, greaterThan(GameTuning.meterFillPerSec));
+    test('re-activating after empty refills the burst', () {
+      final s = _freshState();
+      silenceSpawner(s);
+      s.setChronoActive(true);
+      // Drain the burst naturally.
+      const dt = 1 / 60;
+      for (var i = 0; i < 60 * 5; i++) {
+        s.tick(dt);
+        if (!s.chronoActive) break;
+      }
+      expect(s.chronoActive, isFalse);
+      expect(s.meter, 0.0);
+      // A fresh swipe must give a full burst again.
+      s.setChronoActive(true);
+      expect(s.meter, 1.0);
+      expect(s.chronoActive, isTrue);
     });
   });
 
@@ -292,7 +308,7 @@ void main() {
       expect(s.nearMisses, 0);
     });
 
-    test('near-miss refunds the full tier-3 amount', () {
+    test('near-miss does not refund the meter', () {
       final s = _freshState();
       s.meter = 0.5;
       const gap = 200.0;
@@ -300,32 +316,9 @@ void main() {
       stageWallAtDistance(s, gap / 2 - d, gap: gap);
       runFew(s);
       expect(s.nearMisses, 1);
-      // meterRefundAmount is the *applied* delta, independent of the
-      // passive fill that happens every tick — so it's the robust
-      // thing to assert against the tuning value.
-      expect(s.meterRefundAmount,
-          closeTo(GameTuning.meterRefundTier3, 1e-6));
-      // And meter itself must have gone up by at least the refund.
-      expect(s.meter, greaterThanOrEqualTo(0.5 + GameTuning.meterRefundTier3));
-    });
-
-    test('near-miss refund is clamped at 1.0', () {
-      final s = _freshState();
-      // Start just below 1.0 so the tier-3 refund (0.18) would overflow.
-      // Passive fill during the run-up to the near-miss also pushes
-      // upward, so we pick a start that's close but leaves clear room
-      // for a measurable clamp.
-      s.meter = 0.90;
-      const gap = 200.0;
-      const d = 13.0; // tier 3
-      stageWallAtDistance(s, gap / 2 - d, gap: gap);
-      runFew(s);
-      expect(s.nearMisses, 1);
-      expect(s.meter, 1.0);
-      // Applied refund must be strictly less than the un-clamped tier-3
-      // refund (we hit the ceiling).
-      expect(s.meterRefundAmount,
-          lessThan(GameTuning.meterRefundTier3));
+      // Burst economy: meter is only changed by activation/drain,
+      // never by near-misses.
+      expect(s.meter, 0.5);
     });
   });
 }
